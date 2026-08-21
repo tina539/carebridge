@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareBridge AI</title>
+    <style>
+        body {
+            background-image: url("{{ url_for('static', filename='1.jpg') }}");
+            background-size: cover;
+            background-position: center bottom;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            font-family: sans-serif;
+            padding: 20px;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <h1>CareBridge</h1>
+    <h2>偏鄉智慧醫療平台</h2>
+
+    <p style=" background-color: #003366; color: #ffffff; display: inline-block; padding: 4px 12px;">請選擇您的身分</p>
+    <br>
+
+<button onclick="location.href='/doctor'">
+    🩺我是醫生
+</button>
+
+<button onclick="location.href='/patient'" >
+    💊我是患者
+</button>
+
+<button onclick="location.href='/hospital-login'">
+    🏥醫院平台
+</button>
+
+</body>
+
+</html>
