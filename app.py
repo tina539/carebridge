@@ -2060,13 +2060,12 @@ def patient_home():
     WHERE v.patient_id::text = %s::text
     AND v.visit_date = %s
     AND v.status IN ('已預約', '已報到', '看診中')
-    ORDER BY v.visit_id DESC
+    ORDER BY v.appointment_number DESC
     LIMIT 1
 """, (
     str(patient_id),
     today
 ))
-
     visit = cursor.fetchone()
 
     # =========================
