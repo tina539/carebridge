@@ -666,46 +666,81 @@ def doctor_home():
     doc_facility_id = str(doc_data[0]) if (doc_data and doc_data[0] is not None) else ""
     doctor_name = doc_data[1] if doc_data else "醫師"
 
-    # 2. 今日待處理患者（依醫院過濾，移除時區受限的 visit_date）
-    cursor.execute("""
-        SELECT 
-            p.name,
-            p.patient_id,
-            v.status,
-            v.appointment_number,
-            v.appointment_time
-        FROM visits v
-        JOIN patients p ON v.patient_id::text = p.patient_id::text
-        WHERE v.facility_id::text = %s::text
-        AND v.status IN ('已報到', '已預約', '看診中')
-        ORDER BY 
-            CASE 
-                WHEN v.status = '已報到' THEN 0
-                WHEN v.status = '看診中' THEN 1
-                WHEN v.status = '已預約' THEN 2
-                ELSE 3
-            END,
-            v.appointment_number ASC
-    """, (str(doc_facility_id),))
+    # 2. 今日待處理患者（依醫院過濾，若無綁定則顯示全部）
+    if doc_facility_id:
+        cursor.execute("""
+            SELECT 
+                COALESCE(p.name, '患者(' || v.patient_id::text || ')'),
+                v.patient_id,
+                v.status,
+                v.appointment_number,
+                v.appointment_time
+            FROM visits v
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
+            WHERE v.facility_id::text = %s::text
+            AND v.status IN ('已報到', '已預約', '看診中', 'waiting', 'confirmed')
+            ORDER BY 
+                CASE 
+                    WHEN v.status IN ('已報到', 'checked_in') THEN 0
+                    WHEN v.status IN ('看診中', 'in_consultation') THEN 1
+                    WHEN v.status IN ('已預約', 'waiting', 'confirmed') THEN 2
+                    ELSE 3
+                END,
+                v.appointment_number ASC
+        """, (str(doc_facility_id),))
+    else:
+        cursor.execute("""
+            SELECT 
+                COALESCE(p.name, '患者(' || v.patient_id::text || ')'),
+                v.patient_id,
+                v.status,
+                v.appointment_number,
+                v.appointment_time
+            FROM visits v
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
+            WHERE v.status IN ('已報到', '已預約', '看診中', 'waiting', 'confirmed')
+            ORDER BY 
+                CASE 
+                    WHEN v.status IN ('已報到', 'checked_in') THEN 0
+                    WHEN v.status IN ('看診中', 'in_consultation') THEN 1
+                    WHEN v.status IN ('已預約', 'waiting', 'confirmed') THEN 2
+                    ELSE 3
+                END,
+                v.appointment_number ASC
+        """)
     pending_patients = cursor.fetchall()
 
-    # 3. 今日已完成患者（依醫院過濾）
-    cursor.execute("""
-        SELECT 
-            p.name,
-            p.patient_id,
-            v.appointment_number,
-            v.appointment_time,
-            v.completed_at
-        FROM visits v
-        JOIN patients p ON v.patient_id::text = p.patient_id::text
-        WHERE v.facility_id::text = %s::text
-        AND v.status = '已完成'
-        ORDER BY v.completed_at DESC
-    """, (str(doc_facility_id),))
+    # 3. 今日已完成患者
+    if doc_facility_id:
+        cursor.execute("""
+            SELECT 
+                COALESCE(p.name, '患者(' || v.patient_id::text || ')'),
+                v.patient_id,
+                v.appointment_number,
+                v.appointment_time,
+                v.completed_at
+            FROM visits v
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
+            WHERE v.facility_id::text = %s::text
+            AND v.status = '已完成'
+            ORDER BY v.completed_at DESC
+        """, (str(doc_facility_id),))
+    else:
+        cursor.execute("""
+            SELECT 
+                COALESCE(p.name, '患者(' || v.patient_id::text || ')'),
+                v.patient_id,
+                v.appointment_number,
+                v.appointment_time,
+                v.completed_at
+            FROM visits v
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
+            WHERE v.status = '已完成'
+            ORDER BY v.completed_at DESC
+        """)
     completed_patients = cursor.fetchall()
 
-    conn.close()
+    print(f"=== 醫生端載入成功: doctor={doctor_name}, facility={doc_facility_id}, 待處理人數={len(pending_patients)} ===")
 
     return render_template(
         "doctor.html",
