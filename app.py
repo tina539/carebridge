@@ -676,7 +676,6 @@ def doctor_home():
     if "doctor_id" not in session and "doctor" not in session:
         return redirect("/doctor")
 
-    # 取得目前登入的 doctor_id
     doctor_id = session.get("doctor_id") or session.get("doctor")
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -686,58 +685,50 @@ def doctor_home():
     # 1. 查詢該醫師所屬的醫院 ID
     cursor.execute("SELECT facility_id, name FROM doctors WHERE doctor_id::text = %s::text", (str(doctor_id),))
     doc_data = cursor.fetchone()
-    doc_facility_id = doc_data[0] if doc_data else None
+    doc_facility_id = str(doc_data[0]) if (doc_data and doc_data[0] is not None) else ""
 
     # 2. 今日待處理患者（依醫院過濾）
     cursor.execute("""
         SELECT 
-            visits.id,
-            patients.name,
-            patients.patient_id,
-            visits.status,
-            visits.appointment_number,
-            visits.appointment_time
-        FROM visits
-        JOIN patients 
-            ON visits.patient_id::text = patients.patient_id::text
-        WHERE visits.visit_date = %s
-          AND visits.facility_id::text = %s::text
-          AND visits.status IN ('已報到', '已預約', '看診中')
+            v.visit_id,
+            p.name,
+            p.patient_id,
+            v.status,
+            v.appointment_number,
+            v.appointment_time
+        FROM visits v
+        JOIN patients p ON v.patient_id = p.patient_id
+        WHERE v.visit_date = %s
+          AND v.facility_id = %s
+          AND v.status IN ('已報到', '已預約', '看診中')
         ORDER BY 
             CASE 
-                WHEN visits.status = '已報到' THEN 0
-                WHEN visits.status = '看診中' THEN 1
-                WHEN visits.status = '已預約' THEN 2
+                WHEN v.status = '已報到' THEN 0
+                WHEN v.status = '看診中' THEN 1
+                WHEN v.status = '已預約' THEN 2
                 ELSE 3
             END,
-            visits.appointment_number ASC
-    """, (today, str(doc_facility_id)))
+            v.appointment_number ASC
+    """, (today, doc_facility_id))
     pending_patients = cursor.fetchall()
 
     # 3. 今日已完成患者（依醫院過濾）
     cursor.execute("""
         SELECT 
-            visits.id,
-            patients.name,
-            patients.patient_id,
-            visits.appointment_number,
-            visits.appointment_time,
-            visits.completed_at
-        FROM visits
-        JOIN patients 
-            ON visits.patient_id::text = patients.patient_id::text
-        WHERE visits.visit_date = %s
-          AND visits.facility_id::text = %s::text
-          AND visits.status = '已完成'
-        ORDER BY visits.completed_at DESC
-    """, (today, str(doc_facility_id)))
+            v.visit_id,
+            p.name,
+            p.patient_id,
+            v.appointment_number,
+            v.appointment_time,
+            v.completed_at
+        FROM visits v
+        JOIN patients p ON v.patient_id = p.patient_id
+        WHERE v.visit_date = %s
+          AND v.facility_id = %s
+          AND v.status = '已完成'
+        ORDER BY v.completed_at DESC
+    """, (today, doc_facility_id))
     completed_patients = cursor.fetchall()
-
-@app.route("/doctor-patient/<patient_id>")
-def doctor_patient(patient_id):
-
-    if "doctor_id" not in session:
-        return redirect("/doctor")
 
     # -------------------------
     # 先取得病患基本資料
