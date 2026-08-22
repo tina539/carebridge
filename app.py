@@ -2229,7 +2229,13 @@ def patient_home():
         <title>
             CareBridge - 患者首頁
         </title>
-        background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+       <style>
+        body {
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }
+    </style>
 
     </head>
 
@@ -2325,7 +2331,13 @@ def choose_facility():
               content="width=device-width, initial-scale=1.0">
 
         <title>CareBridge - 看診方式</title>
-        background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+        <style>
+        body {
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }
+    </style>
     </head>
 
     <body>
@@ -3109,7 +3121,13 @@ def visit():
         <title>
             CareBridge - 醫療院所推薦
         </title>
-         background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+        <style>
+        body {
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }
+    </style>
 
     </head>
 
