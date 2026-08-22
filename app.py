@@ -662,17 +662,19 @@ def doctor_home():
     doc_facility_id = str(doc_data[0]) if (doc_data and doc_data[0] is not None) else ""
     doctor_name = doc_data[1] if doc_data else "醫師"
 
-    # 2. 今日待處理患者（已報到、已預約、看診中）
+    # 2. 今日待處理患者（欄位順序完全對齊前端模板）
+    # 0: visit_id, 1: name, 2: patient_id, 3: status, 4: appointment_number, 5: appointment_time
     if doc_facility_id:
         cursor.execute("""
             SELECT 
-                p.name,
-                p.patient_id,
+                v.visit_id,
+                COALESCE(p.name, '患者'),
+                v.patient_id,
                 v.status,
                 v.appointment_number,
                 v.appointment_time
             FROM visits v
-            JOIN patients p ON v.patient_id::text = p.patient_id::text
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
             WHERE v.facility_id::text = %s::text
             AND v.status IN ('已報到', '已預約', '看診中')
             ORDER BY 
@@ -687,13 +689,14 @@ def doctor_home():
     else:
         cursor.execute("""
             SELECT 
-                p.name,
-                p.patient_id,
+                v.visit_id,
+                COALESCE(p.name, '患者'),
+                v.patient_id,
                 v.status,
                 v.appointment_number,
                 v.appointment_time
             FROM visits v
-            JOIN patients p ON v.patient_id::text = p.patient_id::text
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
             WHERE v.status IN ('已報到', '已預約', '看診中')
             ORDER BY 
                 CASE 
@@ -704,19 +707,19 @@ def doctor_home():
                 END,
                 v.appointment_number ASC
         """)
-    pending_patients = cursor.fetchall()
+    waiting_patients = cursor.fetchall()
 
     # 3. 今日已完成患者
     if doc_facility_id:
         cursor.execute("""
             SELECT 
-                p.name,
-                p.patient_id,
+                COALESCE(p.name, '患者'),
+                v.patient_id,
                 v.appointment_number,
                 v.appointment_time,
                 v.completed_at
             FROM visits v
-            JOIN patients p ON v.patient_id::text = p.patient_id::text
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
             WHERE v.facility_id::text = %s::text
             AND v.status = '已完成'
             ORDER BY v.completed_at DESC
@@ -724,13 +727,13 @@ def doctor_home():
     else:
         cursor.execute("""
             SELECT 
-                p.name,
-                p.patient_id,
+                COALESCE(p.name, '患者'),
+                v.patient_id,
                 v.appointment_number,
                 v.appointment_time,
                 v.completed_at
             FROM visits v
-            JOIN patients p ON v.patient_id::text = p.patient_id::text
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
             WHERE v.status = '已完成'
             ORDER BY v.completed_at DESC
         """)
@@ -741,12 +744,10 @@ def doctor_home():
     return render_template(
         "doctor.html",
         doctor_name=doctor_name,
-        pending_patients=pending_patients,
+        waiting_patients=waiting_patients,
+        pending_patients=waiting_patients,
         completed_patients=completed_patients
     )
-   # -------------------------
-# 查看病患詳細資料與病歷
-# -------------------------
 @app.route("/doctor-patient-detail/<patient_id>")
 def doctor_patient_detail(patient_id):
     if "doctor_id" not in session and "doctor" not in session:
