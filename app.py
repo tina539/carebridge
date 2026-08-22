@@ -3238,7 +3238,7 @@ def select_facility():
     # =========================
 
     cursor.execute("""
-        SELECT visit_id
+        SELECT 1
         FROM visits
         WHERE patient_id = %s
         AND visit_date = %s
