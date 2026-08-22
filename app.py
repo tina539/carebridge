@@ -3327,7 +3327,7 @@ def select_facility():
             appointment_time
         )
         VALUES (%s, %s, %s, %s, %s, %s, %s)
-        RETURNING visit_id
+        RETURNING id
     """, (
         patient_id,
         facility_id,
