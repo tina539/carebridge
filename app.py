@@ -2044,28 +2044,28 @@ def patient_home():
     # =========================
 
     cursor.execute("""
-        SELECT
-            v.appointment_number,
-            v.appointment_time,
-            v.status,
-            v.chief_complaint,
-            v.ai_summary,
-            m.name,
-            m.facility_type,
-            m.address,
-            m.average_wait_minutes
-        FROM visits v
-        LEFT JOIN medical_facilities m
-           ON v.facility_id::text = m.facility_id::text
-        WHERE v.patient_id = %s
-        AND v.visit_date = %s
-        AND v.status IN ('已預約', '已報到', '看診中')
-        ORDER BY v.visit_id DESC
-        LIMIT 1
-    """, (
-        patient_id,
-        today
-    ))
+    SELECT
+        v.appointment_number,
+        v.appointment_time,
+        v.status,
+        v.chief_complaint,
+        NULL AS ai_summary,
+        m.name,
+        m.facility_type,
+        m.address,
+        m.average_wait_minutes
+    FROM visits v
+    LEFT JOIN medical_facilities m
+        ON v.facility_id::text = m.facility_id::text
+    WHERE v.patient_id::text = %s::text
+    AND v.visit_date = %s
+    AND v.status IN ('已預約', '已報到', '看診中')
+    ORDER BY v.visit_id DESC
+    LIMIT 1
+""", (
+    str(patient_id),
+    today
+))
 
     visit = cursor.fetchone()
 
