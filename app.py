@@ -25,6 +25,20 @@ def get_db_connection():
 
     return sqlite3.connect("carebridge.db")
 
+# 自動補齊 visits 資料表缺失的 visit_id 欄位
+try:
+    _conn = get_db_connection()
+    _cur = _conn.cursor()
+    # 判斷是否為 PostgreSQL（Render 環境）
+    if os.environ.get("DATABASE_URL"):
+        _cur.execute("ALTER TABLE visits ADD COLUMN IF NOT EXISTS visit_id SERIAL;")
+        _conn.commit()
+    _cur.close()
+    _conn.close()
+    print("✅ 資料庫 visit_id 欄位已自動確認/補齊！")
+except Exception as _e:
+    print(f"⚠️ 資料庫自動遷移略過或失敗: {_e}")
+
 def get_db():
     return psycopg.connect(
         os.environ["DATABASE_URL"]
@@ -2099,7 +2113,7 @@ def patient_home():
                 WHERE patient_id = %s
                 AND visit_date = %s
                 AND status IN ('已預約', '已報到', '看診中')
-                ORDER BY visit_id DESC
+                ORDER BY appointment_number DESC
                 LIMIT 1
             )
             AND visit_date = %s
