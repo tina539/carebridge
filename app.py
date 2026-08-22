@@ -711,7 +711,7 @@ def doctor_home():
                 ELSE 3
             END,
             visits.appointment_number ASC
-    """, (today, doc_facility_id))
+    """, (today, str(doc_facility_id)))
 
     waiting_patients = cursor.fetchall()
 
@@ -731,7 +731,7 @@ def doctor_home():
           AND visits.facility_id = %s
           AND visits.status = '已完成'
         ORDER BY visits.completed_at DESC
-    """, (today, doc_facility_id))
+""", (today, str(doc_facility_id)))
 
     completed_patients = cursor.fetchall()
 
@@ -2065,9 +2065,11 @@ def patient():
     if request.method == "GET":
         return render_template("patient-login.html")
 
-    id_number = request.form.get(
-        "id_number",
-        ""
+    id_number = (
+        request.form.get("id_number") 
+        or request.form.get("idNumber") 
+        or request.form.get("id") 
+        or ""
     ).strip().upper()
 
     conn = get_db_connection()
@@ -2169,7 +2171,7 @@ def patient_home():
             m.average_wait_minutes
         FROM visits v
         LEFT JOIN medical_facilities m
-            ON v.facility_id = m.facility_id
+           ON v.facility_id::text = m.facility_id::text
         WHERE v.patient_id = %s
         AND v.visit_date = %s
         AND v.status IN ('已預約', '已報到', '看診中')
@@ -5092,10 +5094,14 @@ def register():
         return render_template("patient-register.html")
 
     # POST：接收註冊資料
+    # POST : 接收註冊資料
+    print("=== 前端送來的完整資料 ===", dict(request.form))
     name = request.form.get("name")
-    id_number = request.form.get(
-        "id_number",
-        ""
+    id_number = (
+        request.form.get("id_number") 
+        or request.form.get("idNumber") 
+        or request.form.get("id") 
+        or ""
     ).strip().upper()
 
     birth_date = request.form.get("birthDate")
@@ -5106,27 +5112,22 @@ def register():
     allergy = request.form.get("allergy")
     medication = request.form.get("medication")
 
-    # 檢查身分證字號是否已註冊
+# 檢查身分證字號是否已註冊
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT patient_id
-        FROM patients
-        WHERE id_number = %s
-        LIMIT 1
-    """, (id_number,))
+    try:
+        cursor.execute("SELECT patient_id FROM patients WHERE id_number = %s LIMIT 1", (id_number,))
+    except Exception:
+        cursor.execute("SELECT patient_id FROM patients WHERE id_number = ? LIMIT 1", (id_number,))
 
     existing_patient = cursor.fetchone()
 
     if existing_patient:
         conn.close()
-
         return """
         <h1>註冊失敗</h1>
-
         <p>此身分證字號已經註冊過。</p>
-
         <button onclick="location.href='/patient'">
             回到患者登入
         </button>
@@ -5135,32 +5136,17 @@ def register():
     # 產生 CareBridge Patient ID
     patient_id = "CB-" + str(uuid.uuid4())[:8].upper()
 
-    # 將資料存進 SQLite
-    cursor.execute("""
-        INSERT INTO patients
-        (
-            patient_id,
-            id_number,
-            name,
-            birth_date,
-            gender,
-            phone,
-            disease,
-            allergy,
-            medication
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, (
-        patient_id,
-        id_number,
-        name,
-        birth_date,
-        gender,
-        phone,
-        disease,
-        allergy,
-        medication
-    ))
+    # 將資料存進資料庫
+    try:
+        cursor.execute("""
+            INSERT INTO patients (patient_id, id_number, name, birth_date, gender, phone, disease, allergy, medication)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (patient_id, id_number, name, birth_date, gender, phone, disease, allergy, medication))
+    except Exception:
+        cursor.execute("""
+            INSERT INTO patients (patient_id, id_number, name, birth_date, gender, phone, disease, allergy, medication)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (patient_id, id_number, name, birth_date, gender, phone, disease, allergy, medication))
 
     conn.commit()
     conn.close()

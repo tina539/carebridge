@@ -36,12 +36,18 @@ print("PostgreSQL 連線成功")
 # 4. 建立 doctors
 # ========================================
 
+# 先清空舊結構重新建立
+pg_cursor.execute("DROP TABLE IF EXISTS visits CASCADE;")
+pg_cursor.execute("DROP TABLE IF EXISTS patients CASCADE;")
+pg_cursor.execute("DROP TABLE IF EXISTS doctors CASCADE;")
+
 pg_cursor.execute("""
 CREATE TABLE IF NOT EXISTS doctors (
     doctor_id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     username TEXT NOT NULL,
-    password TEXT NOT NULL
+    password TEXT NOT NULL,
+    facility_id INTEGER
 )
 """)
 
@@ -84,222 +90,32 @@ CREATE TABLE IF NOT EXISTS visits (
     completed_at TEXT,
     diagnosis TEXT,
     prescription TEXT,
-    ai_summary TEXT
+    ai_summary TEXT,
+    facility_id TEXT
 )
 """)
 
 
 print("PostgreSQL 資料表建立完成")
 
+# ==========================================
+# 建立 3 位預設醫生帳號
+# ==========================================
+print("正在建立預設醫生帳號...")
 
-# ========================================
-# 7. 搬移 doctors
-# ========================================
+doctors_data = [
+    (1, '慧慧', 'huihui', '1234', 1),
+    (2, '賴賴', 'line', '4321', 3),
+    (3, '甘甘', 'stella', '1002', 2)
+]
 
-sqlite_cursor.execute("""
-SELECT
-    doctor_id,
-    name,
-    username,
-    password
-FROM doctors
-""")
-
-doctors = sqlite_cursor.fetchall()
-
-for doctor in doctors:
-
+for d in doctors_data:
     pg_cursor.execute("""
-        INSERT INTO doctors (
-            doctor_id,
-            name,
-            username,
-            password
-        )
-        VALUES (%s, %s, %s, %s)
-        ON CONFLICT (doctor_id)
-        DO UPDATE SET
-            name = EXCLUDED.name,
-            username = EXCLUDED.username,
-            password = EXCLUDED.password
-    """, doctor)
-
-
-print(f"doctors 搬移完成：{len(doctors)} 筆")
-
-
-# ========================================
-# 8. 搬移 patients
-# ========================================
-
-sqlite_cursor.execute("""
-SELECT
-    patient_id,
-    name,
-    birth_date,
-    gender,
-    phone,
-    disease,
-    allergy,
-    medication,
-    id_number,
-    family_history
-FROM patients
-""")
-
-patients = sqlite_cursor.fetchall()
-
-for patient in patients:
-
-    pg_cursor.execute("""
-        INSERT INTO patients (
-            patient_id,
-            name,
-            birth_date,
-            gender,
-            phone,
-            disease,
-            allergy,
-            medication,
-            id_number,
-            family_history
-        )
-        VALUES (
-            %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s
-        )
-        ON CONFLICT (patient_id)
-        DO UPDATE SET
-            name = EXCLUDED.name,
-            birth_date = EXCLUDED.birth_date,
-            gender = EXCLUDED.gender,
-            phone = EXCLUDED.phone,
-            disease = EXCLUDED.disease,
-            allergy = EXCLUDED.allergy,
-            medication = EXCLUDED.medication,
-            id_number = EXCLUDED.id_number,
-            family_history = EXCLUDED.family_history
-    """, patient)
-
-
-print(f"patients 搬移完成：{len(patients)} 筆")
-
-
-# ========================================
-# 9. 搬移 visits
-# ========================================
-
-sqlite_cursor.execute("PRAGMA table_info(visits)")
-columns = [col[1] for col in sqlite_cursor.fetchall()]
-
-if "ai_summary" in columns:
-    sqlite_cursor.execute("""
-        SELECT
-            visit_id,
-            patient_id,
-            visit_date,
-            status,
-            chief_complaint,
-            appointment_number,
-            appointment_time,
-            checked_in_at,
-            started_at,
-            completed_at,
-            diagnosis,
-            prescription,
-            ai_summary
-        FROM visits
-    """)
-    visits = sqlite_cursor.fetchall()
-    for visit in visits:
-        pg_cursor.execute("""
-            INSERT INTO visits (
-                visit_id,
-                patient_id,
-                visit_date,
-                status,
-                chief_complaint,
-                appointment_number,
-                appointment_time,
-                checked_in_at,
-                started_at,
-                completed_at,
-                diagnosis,
-                prescription,
-                ai_summary
-            ) VALUES (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s,
-                %s, %s, %s
-            )
-            ON CONFLICT (visit_id) DO UPDATE SET
-                patient_id = EXCLUDED.patient_id,
-                visit_date = EXCLUDED.visit_date,
-                status = EXCLUDED.status,
-                chief_complaint = EXCLUDED.chief_complaint,
-                appointment_number = EXCLUDED.appointment_number,
-                appointment_time = EXCLUDED.appointment_time,
-                checked_in_at = EXCLUDED.checked_in_at,
-                started_at = EXCLUDED.started_at,
-                completed_at = EXCLUDED.completed_at,
-                diagnosis = EXCLUDED.diagnosis,
-                prescription = EXCLUDED.prescription,
-                ai_summary = EXCLUDED.ai_summary
-        """, visit)
-else:
-    sqlite_cursor.execute("""
-        SELECT
-            visit_id,
-            patient_id,
-            visit_date,
-            status,
-            chief_complaint,
-            appointment_number,
-            appointment_time,
-            checked_in_at,
-            started_at,
-            completed_at,
-            diagnosis,
-            prescription
-        FROM visits
-    """)
-    visits = sqlite_cursor.fetchall()
-    for visit in visits:
-        pg_cursor.execute("""
-            INSERT INTO visits (
-                visit_id,
-                patient_id,
-                visit_date,
-                status,
-                chief_complaint,
-                appointment_number,
-                appointment_time,
-                checked_in_at,
-                started_at,
-                completed_at,
-                diagnosis,
-                prescription,
-                ai_summary
-            ) VALUES (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s,
-                %s, %s, NULL
-            )
-            ON CONFLICT (visit_id) DO UPDATE SET
-                patient_id = EXCLUDED.patient_id,
-                visit_date = EXCLUDED.visit_date,
-                status = EXCLUDED.status,
-                chief_complaint = EXCLUDED.chief_complaint,
-                appointment_number = EXCLUDED.appointment_number,
-                appointment_time = EXCLUDED.appointment_time,
-                checked_in_at = EXCLUDED.checked_in_at,
-                started_at = EXCLUDED.started_at,
-                completed_at = EXCLUDED.completed_at,
-                diagnosis = EXCLUDED.diagnosis,
-                prescription = EXCLUDED.prescription
-        """, visit)
-
-print(f"visits 搬移完成：{len(visits)} 筆")
+        INSERT INTO doctors (doctor_id, name, username, password, facility_id)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (doctor_id) DO UPDATE 
+        SET name=EXCLUDED.name, username=EXCLUDED.username, password=EXCLUDED.password, facility_id=EXCLUDED.facility_id;
+    """, d)
 
 
 # ========================================
