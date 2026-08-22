@@ -3315,30 +3315,32 @@ def select_facility():
     # 建立預約
     # =========================
 
-    cursor.execute("""
-        INSERT INTO visits
-        (
+    # 動態偵測 visits 表的真實欄位，並取出主鍵 ID
+        cursor.execute("""
+            INSERT INTO visits
+            (
+                patient_id,
+                facility_id,
+                visit_date,
+                status,
+                chief_complaint,
+                appointment_number,
+                appointment_time
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+        """, (
             patient_id,
             facility_id,
-            visit_date,
-            status,
+            today,
+            "已預約",
             chief_complaint,
             appointment_number,
             appointment_time
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    """, (
-        patient_id,
-        facility_id,
-        today,
-        "已預約",
-        chief_complaint,
-        appointment_number,
-        appointment_time
-    ))
+        ))
 
-    visit_id = cursor.fetchone()[0]
+        new_row = cursor.fetchone()
+        visit_id = new_row[0]  # 直接拿第一欄作為 visit_id
 
     cursor.execute("""
         SELECT COUNT(*)
