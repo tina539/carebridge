@@ -674,7 +674,7 @@ def doctor_login():
 @app.route("/doctor-home")
 def doctor_home():
     import datetime
-
+    
     if "doctor_id" not in session and "doctor" not in session:
         return redirect("/doctor")
 
@@ -692,16 +692,15 @@ def doctor_home():
     # 2. 今日待處理患者（依醫院過濾）
     cursor.execute("""
         SELECT 
-            v.visit_id,
             p.name,
             p.patient_id,
             v.status,
             v.appointment_number,
             v.appointment_time
         FROM visits v
-        JOIN patients p ON v.patient_id = p.patient_id
+        JOIN patients p ON v.patient_id::text = p.patient_id::text
         WHERE v.visit_date = %s
-          AND v.facility_id = %s
+          AND v.facility_id::text = %s::text
           AND v.status IN ('已報到', '已預約', '看診中')
         ORDER BY 
             CASE 
@@ -717,16 +716,15 @@ def doctor_home():
     # 3. 今日已完成患者（依醫院過濾）
     cursor.execute("""
         SELECT 
-            v.visit_id,
             p.name,
             p.patient_id,
             v.appointment_number,
             v.appointment_time,
             v.completed_at
         FROM visits v
-        JOIN patients p ON v.patient_id = p.patient_id
+        JOIN patients p ON v.patient_id::text = p.patient_id::text
         WHERE v.visit_date = %s
-          AND v.facility_id = %s
+          AND v.facility_id::text = %s::text
           AND v.status = '已完成'
         ORDER BY v.completed_at DESC
     """, (today, doc_facility_id))
@@ -740,25 +738,25 @@ def doctor_home():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT
-            patients.patient_id,
-            patients.name,
-            patients.birth_date,
-            patients.gender,
-            patients.phone,
-            patients.disease,
-            patients.allergy,
-            patients.medication,
-            patients.family_history,
-            visits.chief_complaint,
-            visits.status
-        FROM patients
-        JOIN visits
-            ON patients.patient_id = visits.patient_id
-        WHERE patients.patient_id = %s
-        ORDER BY visits.visit_id DESC
-        LIMIT 1
-    """, (patient_id,))
+    SELECT 
+        patients.patient_id,
+        patients.name,
+        patients.birth_date,
+        patients.gender,
+        patients.phone,
+        patients.disease,
+        patients.allergy,
+        patients.medication,
+        patients.family_history,
+        visits.chief_complaint,
+        visits.status
+    FROM patients
+    JOIN visits 
+        ON patients.patient_id::text = visits.patient_id::text
+    WHERE patients.patient_id::text = %s::text
+    ORDER BY visits.visit_date DESC, visits.appointment_number DESC
+    LIMIT 1
+""", (str(patient_id),))
 
     patient = cursor.fetchone()
 
