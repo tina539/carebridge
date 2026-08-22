@@ -2556,17 +2556,16 @@ def visit():
     # =========================
 
     cursor.execute("""
-        SELECT id
-        FROM visits
-        WHERE patient_id = %s
-        AND visit_date = %s
-        AND status IN ('已預約', '已報到', '看診中')
-        ORDER BY id DESC
-        LIMIT 1
-    """, (
-        patient_id,
-        today
-    ))
+    SELECT 1
+    FROM visits
+    WHERE patient_id = %s
+    AND visit_date = %s
+    AND status IN ('已預約', '已報到', '看診中')
+    LIMIT 1
+""", (
+    patient_id,
+    today
+))
 
     existing_visit = cursor.fetchone()
 
