@@ -688,6 +688,7 @@ def doctor_home():
     cursor.execute("SELECT facility_id, name FROM doctors WHERE doctor_id::text = %s::text", (str(doctor_id),))
     doc_data = cursor.fetchone()
     doc_facility_id = str(doc_data[0]) if (doc_data and doc_data[0] is not None) else ""
+    doctor_name = doc_data[1] if doc_data else "醫師"
 
     # 2. 今日待處理患者（依醫院過濾）
     cursor.execute("""
@@ -730,33 +731,47 @@ def doctor_home():
     """, (today, doc_facility_id))
     completed_patients = cursor.fetchall()
 
-    # -------------------------
-    # 先取得病患基本資料
-    # -------------------------
+    conn.close()
+
+    return render_template(
+        "doctor-home.html",
+        doctor_name=doctor_name,
+        pending_patients=pending_patients,
+        completed_patients=completed_patients,
+        today=today
+    )
+
+   # -------------------------
+# 查看病患詳細資料與病歷
+# -------------------------
+@app.route("/doctor-patient-detail/<patient_id>")
+def doctor_patient_detail(patient_id):
+    if "doctor_id" not in session and "doctor" not in session:
+        return redirect("/doctor")
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT 
-        patients.patient_id,
-        patients.name,
-        patients.birth_date,
-        patients.gender,
-        patients.phone,
-        patients.disease,
-        patients.allergy,
-        patients.medication,
-        patients.family_history,
-        visits.chief_complaint,
-        visits.status
-    FROM patients
-    JOIN visits 
-        ON patients.patient_id::text = visits.patient_id::text
-    WHERE patients.patient_id::text = %s::text
-    ORDER BY visits.visit_date DESC, visits.appointment_number DESC
-    LIMIT 1
-""", (str(patient_id),))
+        SELECT 
+            patients.patient_id,
+            patients.name,
+            patients.birth_date,
+            patients.gender,
+            patients.phone,
+            patients.disease,
+            patients.allergy,
+            patients.medication,
+            patients.family_history,
+            visits.chief_complaint,
+            visits.status
+        FROM patients
+        JOIN visits 
+            ON patients.patient_id::text = visits.patient_id::text
+        WHERE patients.patient_id::text = %s::text
+        ORDER BY visits.visit_date DESC, visits.appointment_number DESC
+        LIMIT 1
+    """, (str(patient_id),))
 
     patient = cursor.fetchone()
 
@@ -770,97 +785,50 @@ def doctor_home():
             prescription,
             completed_at
         FROM visits
-        WHERE patient_id = %s
+        WHERE patient_id::text = %s::text
         ORDER BY visit_date DESC, visit_id DESC
-    """, (patient_id,))
+    """, (str(patient_id),))
 
     history = cursor.fetchall()
-
-    print(history)
-
     conn.close()
 
-    # -------------------------
     # 找不到病患
-    # -------------------------
     if not patient:
         return """
         <h1>找不到病患</h1>
-
-        <button onclick="location.href='/doctor-home'">
-            回到醫生首頁
-        </button>
+        <button onclick="location.href='/doctor-home'">回到醫生首頁</button>
         """
 
-    # -------------------------
     # 計算年齡
-    # -------------------------
     from datetime import datetime
-
     age = "未提供"
-
-    # 如果有出生日期，就計算年齡
     if patient[2]:
+        try:
+            birth = datetime.strptime(patient[2], "%Y-%m-%d")
+            today = datetime.today()
+            age = today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+        except Exception:
+            age = "未提供"
 
-        birth = datetime.strptime(
-            patient[2],
-            "%Y-%m-%d"
-        )
-
-        today = datetime.today()
-
-        age = (
-            today.year
-            - birth.year
-            - (
-                (today.month, today.day)
-                < (birth.month, birth.day)
-            )
-        )
-
-    # -------------------------
     # 從 FHIR Server 查詢 Condition
-    # -------------------------
-
-    condition_search_url = (
-        "https://hapi.fhir.org/baseR4/Condition"
-    )
-
-    condition_response = requests.get(
-        condition_search_url,
-        params={
-            "identifier":
-            "https://carebridge.example/chronic-condition|"
-            + patient_id
-        },
-        headers={
-            "Accept": "application/fhir+json"
-        },
-        timeout=60
-    )
-
+    condition_search_url = "https://hapi.fhir.org/baseR4/Condition"
     disease = "目前沒有 FHIR 慢性病資料"
+    try:
+        condition_response = requests.get(
+            condition_search_url,
+            params={"identifier": "https://carebridge.example/chronic-condition|" + str(patient_id)},
+            headers={"Accept": "application/fhir+json"},
+            timeout=10
+        )
+        if condition_response.status_code == 200:
+            condition_result = condition_response.json()
+            if condition_result.get("total", 0) > 0:
+                condition_resource = condition_result["entry"][0]["resource"]
+                disease = condition_resource.get("code", {}).get("text", "未提供")
+    except Exception:
+        disease = "FHIR 伺服器連線超時或無資料"
 
-    if condition_response.status_code == 200:
-
-        condition_result = condition_response.json()
-
-        if condition_result.get("total", 0) > 0:
-
-            condition_resource = (
-                condition_result["entry"][0]["resource"]
-            )
-
-            disease = (
-                condition_resource
-                .get("code", {})
-                .get("text", "未提供")
-            )
-
-    # -------------------------
-    # 顯示病患詳細資料
-    # -------------------------
-
+    # 顯示歷史就診紀錄
     history_html = "".join([
         f"""
         <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
@@ -877,92 +845,29 @@ def doctor_home():
 
     return f"""
     <h1>病患詳細資料</h1>
-
     <hr>
-
     <h2>{patient[1]}</h2>
-
-    <p>
-        <strong>Patient ID：</strong>
-        {patient[0]}
-    </p>
-
-    <p>
-        <strong>出生日期：</strong>
-        {patient[2] or "未提供"}
-    </p>
-
-    <p>
-        <strong>年齡：</strong>
-        {age} 歲
-    </p>
-
-    <p>
-        <strong>性別：</strong>
-        {patient[3] or "未提供"}
-    </p>
-
-    <p>
-        <strong>電話：</strong>
-        {patient[4] or "未提供"}
-    </p>
-
+    <p><strong>Patient ID：</strong> {patient[0]}</p>
+    <p><strong>出生日期：</strong> {patient[2] or "未提供"}</p>
+    <p><strong>年齡：</strong> {age} 歲</p>
+    <p><strong>性別：</strong> {patient[3] or "未提供"}</p>
+    <p><strong>電話：</strong> {patient[4] or "未提供"}</p>
     <hr>
-
     <h3>長期健康資料</h3>
-
-    <p>
-        <strong>慢性病：</strong>
-        {disease}
-    </p>
-
-    <p>
-        <strong>過敏史：</strong>
-        {patient[6] or "無資料"}
-    </p>
-
-    <p>
-        <strong>目前用藥：</strong>
-        {patient[7] or "無資料"}
-    </p>
-
-    <p>
-        <strong>家族疾病史：</strong>
-        {patient[8] or "無資料"}
-    </p>
-
+    <p><strong>慢性病：</strong> {disease}</p>
+    <p><strong>過敏史：</strong> {patient[6] or "無資料"}</p>
+    <p><strong>目前用藥：</strong> {patient[7] or "無資料"}</p>
+    <p><strong>家族疾病史：</strong> {patient[8] or "無資料"}</p>
     <hr>
-
     <h3>本次就診</h3>
-
-    <p>
-        <strong>患者原始描述：</strong>
-    </p>
-
-    <p>
-        {patient[9] or "未提供"}
-    </p>
-
-    <p>
-        <strong>就診狀態：</strong>
-        {patient[10] or "未提供"}
-    </p>
-
+    <p><strong>患者原始描述：</strong> {patient[9] or "未提供"}</p>
+    <p><strong>就診狀態：</strong> {patient[10] or "未提供"}</p>
     <hr>
-
     <h3>歷史就診紀錄</h3>
-
     {history_html}
-
     <hr>
-
-    <button onclick="location.href='/doctor-fhir/{patient[0]}'">
-        查看 FHIR 資料
-    </button>
-
-    <button onclick="location.href='/doctor-home'">
-        回到醫生首頁
-    </button>
+    <button onclick="location.href='/doctor-fhir/{patient[0]}'">查看 FHIR 資料</button>
+    <button onclick="location.href='/doctor-home'">回到醫生首頁</button>
     """
 
 @app.route("/doctor-start/<int:visit_id>", methods=["POST"])
