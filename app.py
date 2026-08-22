@@ -2229,14 +2229,13 @@ def patient_home():
         <title>
             CareBridge - 患者首頁
         </title>
-       <style>
-        body {
-            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
-            font-family: sans-serif;
-            padding: 20px;
-        }
-    </style>
-
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
     </head>
 
     <body>
@@ -3122,12 +3121,12 @@ def visit():
             CareBridge - 醫療院所推薦
         </title>
         <style>
-        body {
-            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
-            font-family: sans-serif;
-            padding: 20px;
-        }
-    </style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
 
     </head>
 
