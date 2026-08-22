@@ -666,7 +666,7 @@ def doctor_home():
     doc_facility_id = str(doc_data[0]) if (doc_data and doc_data[0] is not None) else ""
     doctor_name = doc_data[1] if doc_data else "醫師"
 
-    # 2. 今日待處理患者（依醫院過濾）
+    # 2. 今日待處理患者（依醫院過濾，移除時區受限的 visit_date）
     cursor.execute("""
         SELECT 
             p.name,
@@ -676,9 +676,8 @@ def doctor_home():
             v.appointment_time
         FROM visits v
         JOIN patients p ON v.patient_id::text = p.patient_id::text
-        WHERE v.visit_date = %s
-          AND v.facility_id::text = %s::text
-          AND v.status IN ('已報到', '已預約', '看診中')
+        WHERE v.facility_id::text = %s::text
+        AND v.status IN ('已報到', '已預約', '看診中')
         ORDER BY 
             CASE 
                 WHEN v.status = '已報到' THEN 0
@@ -687,7 +686,7 @@ def doctor_home():
                 ELSE 3
             END,
             v.appointment_number ASC
-    """, (today, doc_facility_id))
+    """, (str(doc_facility_id),))
     pending_patients = cursor.fetchall()
 
     # 3. 今日已完成患者（依醫院過濾）
@@ -700,11 +699,10 @@ def doctor_home():
             v.completed_at
         FROM visits v
         JOIN patients p ON v.patient_id::text = p.patient_id::text
-        WHERE v.visit_date = %s
-          AND v.facility_id::text = %s::text
-          AND v.status = '已完成'
+        WHERE v.facility_id::text = %s::text
+        AND v.status = '已完成'
         ORDER BY v.completed_at DESC
-    """, (today, doc_facility_id))
+    """, (str(doc_facility_id),))
     completed_patients = cursor.fetchall()
 
     conn.close()
