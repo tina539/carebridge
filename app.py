@@ -673,6 +673,8 @@ def doctor_login():
 
 @app.route("/doctor-home")
 def doctor_home():
+    import datetime
+    
     if "doctor_id" not in session and "doctor" not in session:
         return redirect("/doctor")
 
