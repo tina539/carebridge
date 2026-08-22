@@ -3243,7 +3243,6 @@ def select_facility():
         WHERE patient_id = %s
         AND visit_date = %s
         AND status IN ('已預約', '已報到', '看診中')
-        ORDER BY visit_id DESC
         LIMIT 1
     """, (
         patient_id,
