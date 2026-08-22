@@ -5026,15 +5026,13 @@ def register():
         cursor.execute("""
             INSERT INTO patients (patient_id, id_number, name, birth_date, gender, phone, disease, allergy, medication)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (patient_id, id_number, name, birth_date, gender, phone, disease, allergy, medication))
-    except Exception:
-        cursor.execute("""
-            INSERT INTO patients (patient_id, id_number, name, birth_date, gender, phone, disease, allergy, medication)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (patient_id, id_number, name, birth_date, gender, phone, disease, allergy, medication))
-
-    conn.commit()
-    conn.close()
+        """, (str(patient_id), str(id_number), str(name), str(birth_date), str(gender), str(phone), str(disease), str(allergy), str(medication)))
+        conn.commit()
+    except Exception as e:
+        print(f"[Register Error] 註冊病患失敗: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
 
     # 記住登入狀態
     session["patient_name"] = name
