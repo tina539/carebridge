@@ -674,12 +674,12 @@ def doctor_login():
 @app.route("/doctor-home")
 def doctor_home():
     import datetime
-    
+
     if "doctor_id" not in session and "doctor" not in session:
         return redirect("/doctor")
 
     doctor_id = session.get("doctor_id") or session.get("doctor")
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.date.today().strftime("%Y-%m-%d")
 
     conn = get_db_connection()
     cursor = conn.cursor()
