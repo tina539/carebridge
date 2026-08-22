@@ -691,7 +691,7 @@ def doctor_home():
     # 2. 今日待處理患者（依醫院過濾）
     cursor.execute("""
         SELECT 
-            visits.visit_id,
+            visits.id,
             patients.name,
             patients.patient_id,
             visits.status,
@@ -717,7 +717,7 @@ def doctor_home():
     # 3. 今日已完成患者（依醫院過濾）
     cursor.execute("""
         SELECT 
-            visits.visit_id,
+            visits.id,
             patients.name,
             patients.patient_id,
             visits.appointment_number,
@@ -732,15 +732,6 @@ def doctor_home():
         ORDER BY visits.completed_at DESC
     """, (today, str(doc_facility_id)))
     completed_patients = cursor.fetchall()
-
-    conn.close()
-
-    return render_template(
-        "doctor.html",
-        doctor_name=session.get("doctor_name"),
-        waiting_patients=waiting_patients,
-        completed_patients=completed_patients
-    )
 
 @app.route("/doctor-patient/<patient_id>")
 def doctor_patient(patient_id):
