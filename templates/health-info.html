@@ -24,7 +24,7 @@
             type="text"
             id="disease"
             name="disease"
-            value="{{ disease }}"
+            value="{{ disease if disease and disease != 'None' else '' }}"
             placeholder="例如：糖尿病、高血壓，沒有請填無"
         >
 
@@ -48,7 +48,7 @@
             type="text"
             id="allergy"
             name="allergy"
-            value="{{ allergy }}"
+            value="{{ allergy if allergy and allergy != 'None' else '' }}"
             placeholder="例如：青黴素，沒有請填無"
         >
 
@@ -72,7 +72,7 @@
             type="text"
             id="medication"
             name="medication"
-            value="{{ medication }}"
+            value="{{ medication if medication and medication != 'None' else '' }}"
             placeholder="例如：降血壓藥，沒有請填無"
         >
 
