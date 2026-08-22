@@ -6,92 +6,112 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CareBridge AI</title>
     <style>
-        body {
-            background-color: #dff3ea;
-            background-image: url("{{ url_for('static', filename='background.jpg') }}");
-            background-size: cover;
-            background-position: left bottom;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-            min-height: 100vh;
-            margin: 0;
-            padding: 35px 40px;
-            font-family: sans-serif;
-            box-sizing: border-box;
-        }
+    body {
+        background-color: #dff3ea;
+        background-image: url("{{ url_for('static', filename='background.jpg') }}");
+        background-size: cover;
+        background-position: left bottom;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        min-height: 100vh;
+        margin: 0;
+        padding: 30px 40px;
+        font-family: sans-serif;
+        box-sizing: border-box;
+    }
 
-        /* 頂部主區塊容器：限制在左半部上方，不壓到下方人物 */
-        .top-container {
-            display: inline-flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+    /* 頂部左側主區塊 */
+    .top-container {
+        display: inline-flex;
+        align-items: flex-start;
+        gap: 32px;
+    }
 
-        /* 標題與按鈕的水平橫向並排區 */
-        .title-action-row {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
+    /* 左側標題區 */
+    .brand-section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
 
-        .title-action-row h1 {
-            margin: 0;
-            font-size: 2.2rem;
-            color: #1a2a24;
-        }
+    .brand-section h1 {
+        margin: 0;
+        font-size: 2.3rem;
+        font-weight: 800;
+        color: #000000;
+    }
 
-        /* 按鈕群組 */
-        .btn-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+    .brand-section .sub-title {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #000000;
+    }
 
-        /* 按鈕樣式：白色微透背景，清楚好點 */
-        .btn-group a {
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid #b2d5c8;
-            padding: 8px 14px;
-            border-radius: 8px;
-            text-decoration: none;
-            color: #2c3e50;
-            font-size: 0.95rem;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
+    /* 右側身分選擇區 */
+    .role-section {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
 
-        .btn-group a:hover {
-            background: #ffffff;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
+    /* 深藍色方形提示標籤 */
+    .role-badge {
+        background-color: #003366;
+        color: #ffffff;
+        font-size: 0.9rem;
+        font-weight: bold;
+        padding: 4px 10px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+    }
 
-        .sub-title {
-            margin: 0;
-            font-size: 1.15rem;
-            color: #334d42;
-            font-weight: 600;
-        }
-    </style>
+    /* 身分按鈕群組 */
+    .btn-group {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-group a {
+        background: #f8f9fa;
+        border: 1px solid #767676;
+        border-radius: 4px;
+        padding: 6px 12px;
+        text-decoration: none;
+        color: #000000;
+        font-size: 0.92rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+    }
+
+    .btn-group a:hover {
+        background: #e2e6ea;
+    }
+</style>
+
 </head>
 
 
 <body>
     <div class="top-container">
-        <div class="title-action-row">
+        <!-- 左邊：標題與副標題 -->
+        <div class="brand-section">
             <h1>CareBridge</h1>
-            
+            <div class="sub-title">偏鄉智慧醫療平台</div>
+        </div>
+
+        <!-- 右邊：深藍色方塊提示 + 身分按鈕 -->
+        <div class="role-section">
+            <div class="role-badge">請選擇您的身分</div>
             <div class="btn-group">
                 <a href="/doctor-login">🩺 我是醫生</a>
                 <a href="/patient">💊 我是患者</a>
                 <a href="/hospital-login">🏥 醫院平台</a>
             </div>
         </div>
-
-        <div class="sub-title">偏鄉智慧醫療平台</div>
     </div>
 </body>
 
