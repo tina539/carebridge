@@ -3791,10 +3791,10 @@ def appointment_success(appointment_number):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+
     # 找到這位患者今天的預約
     cursor.execute("""
-        SELECT
-            visit_id,
+        SELECT 
             facility_id,
             appointment_number,
             appointment_time,
@@ -3810,6 +3810,18 @@ def appointment_success(appointment_number):
         today,
         appointment_number
     ))
+
+    visit = cursor.fetchone()
+
+    if not visit:
+        conn.close()
+        return "找不到預約資料"
+
+    facility_id = visit[0]
+    my_number = visit[1]
+    appointment_time = visit[2]
+    my_status = visit[3]
+    chief_complaint = visit[4]
 
     visit = cursor.fetchone()
 
