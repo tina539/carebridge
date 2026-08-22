@@ -734,7 +734,7 @@ def doctor_home():
     conn.close()
 
     return render_template(
-        "doctor-home.html",
+        "doctor.html",
         doctor_name=doctor_name,
         pending_patients=pending_patients,
         completed_patients=completed_patients,
