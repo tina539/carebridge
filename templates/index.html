@@ -15,34 +15,84 @@
             background-attachment: fixed;
             min-height: 100vh;
             margin: 0;
-            padding: 30px;
+            padding: 35px 40px;
             font-family: sans-serif;
             box-sizing: border-box;
+        }
+
+        /* 頂部主區塊容器：限制在左半部上方，不壓到下方人物 */
+        .top-container {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 標題與按鈕的水平橫向並排區 */
+        .title-action-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .title-action-row h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            color: #1a2a24;
+        }
+
+        /* 按鈕群組 */
+        .btn-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 按鈕樣式：白色微透背景，清楚好點 */
+        .btn-group a {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #b2d5c8;
+            padding: 8px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #2c3e50;
+            font-size: 0.95rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-group a:hover {
+            background: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .sub-title {
+            margin: 0;
+            font-size: 1.15rem;
+            color: #334d42;
+            font-weight: 600;
         }
     </style>
 </head>
 
 
 <body>
+    <div class="top-container">
+        <div class="title-action-row">
+            <h1>CareBridge</h1>
+            
+            <div class="btn-group">
+                <a href="/doctor-login">🩺 我是醫生</a>
+                <a href="/patient">💊 我是患者</a>
+                <a href="/hospital-login">🏥 醫院平台</a>
+            </div>
+        </div>
 
-    <h1>CareBridge</h1>
-    <h2>偏鄉智慧醫療平台</h2>
-
-    <p style=" background-color: #003366; color: #ffffff; display: inline-block; padding: 4px 12px;">請選擇您的身分</p>
-    <br>
-
-<button onclick="location.href='/doctor'">
-    🩺我是醫生
-</button>
-
-<button onclick="location.href='/patient'" >
-    💊我是患者
-</button>
-
-<button onclick="location.href='/hospital-login'">
-    🏥醫院平台
-</button>
-
+        <div class="sub-title">偏鄉智慧醫療平台</div>
+    </div>
 </body>
 
 </html>
