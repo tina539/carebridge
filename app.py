@@ -649,91 +649,101 @@ def doctor_login():
 
 @app.route("/doctor-home")
 def doctor_home():
-    import datetime
-    
     if "doctor_id" not in session and "doctor" not in session:
         return redirect("/doctor")
 
     doctor_id = session.get("doctor_id") or session.get("doctor")
-    today = datetime.date.today().strftime("%Y-%m-%d")
-
     conn = get_db_connection()
     cursor = conn.cursor()
 
     # 1. 查詢該醫師所屬的醫院 ID
     cursor.execute("SELECT facility_id, name FROM doctors WHERE doctor_id::text = %s::text", (str(doctor_id),))
     doc_data = cursor.fetchone()
-    doc_facility_id = str(doc_data[0]) if (doc_data and doc_data[0] is not None) else "3"
+    doc_facility_id = str(doc_data[0]) if (doc_data and doc_data[0] is not None) else ""
     doctor_name = doc_data[1] if doc_data else "醫師"
 
-    # 2. 自動確保資料庫中有測試病患與不同狀態的預約（已預約/已報到）
-    try:
-        # 建立測試病患
+    # 2. 今日待處理患者（已報到、已預約、看診中）
+    if doc_facility_id:
         cursor.execute("""
-            INSERT INTO patients (patient_id, name, id_card, gender, birth_date, phone)
-            VALUES 
-                ('P001', '王小明', 'A123456789', '男', '1995-03-15', '0912345678'),
-                ('P002', '李美華', 'B223456789', '女', '1988-07-22', '0923456789')
-            ON CONFLICT (patient_id) DO NOTHING;
+            SELECT 
+                p.name,
+                p.patient_id,
+                v.status,
+                v.appointment_number,
+                v.appointment_time
+            FROM visits v
+            JOIN patients p ON v.patient_id::text = p.patient_id::text
+            WHERE v.facility_id::text = %s::text
+            AND v.status IN ('已報到', '已預約', '看診中')
+            ORDER BY 
+                CASE 
+                    WHEN v.status = '看診中' THEN 0
+                    WHEN v.status = '已報到' THEN 1
+                    WHEN v.status = '已預約' THEN 2
+                    ELSE 3
+                END,
+                v.appointment_number ASC
+        """, (str(doc_facility_id),))
+    else:
+        cursor.execute("""
+            SELECT 
+                p.name,
+                p.patient_id,
+                v.status,
+                v.appointment_number,
+                v.appointment_time
+            FROM visits v
+            JOIN patients p ON v.patient_id::text = p.patient_id::text
+            WHERE v.status IN ('已報到', '已預約', '看診中')
+            ORDER BY 
+                CASE 
+                    WHEN v.status = '看診中' THEN 0
+                    WHEN v.status = '已報到' THEN 1
+                    WHEN v.status = '已預約' THEN 2
+                    ELSE 3
+                END,
+                v.appointment_number ASC
         """)
-        # 建立一筆「已報到」（可開始看診）與一筆「已預約」（未報到，可看預問診與病歷）
-        cursor.execute("""
-            INSERT INTO visits (patient_id, facility_id, appointment_number, appointment_time, status, chief_complaint, visit_date)
-            SELECT 'P001', %s, 1, '09:30', '已報到', '頭痛、發燒兩天', CURRENT_DATE
-            WHERE NOT EXISTS (SELECT 1 FROM visits WHERE patient_id = 'P001');
-        """, (int(doc_facility_id),))
-        
-        cursor.execute("""
-            INSERT INTO visits (patient_id, facility_id, appointment_number, appointment_time, status, chief_complaint, visit_date)
-            SELECT 'P002', %s, 2, '10:00', '已預約', '喉嚨痛伴隨咳嗽', CURRENT_DATE
-            WHERE NOT EXISTS (SELECT 1 FROM visits WHERE patient_id = 'P002');
-        """, (int(doc_facility_id),))
-        conn.commit()
-    except Exception as e:
-        print(f"初始化醫生端展示資料提示: {e}")
-
-    # 3. 今日待處理患者（包含已報到、已預約、看診中）
-    cursor.execute("""
-        SELECT 
-            p.name,
-            p.patient_id,
-            v.status,
-            v.appointment_number,
-            v.appointment_time,
-            v.visit_id
-        FROM visits v
-        JOIN patients p ON v.patient_id::text = p.patient_id::text
-        WHERE v.facility_id::text = %s::text
-        AND v.status IN ('已報到', '已預約', '看診中')
-        ORDER BY 
-            CASE 
-                WHEN v.status = '看診中' THEN 0
-                WHEN v.status = '已報到' THEN 1
-                WHEN v.status = '已預約' THEN 2
-                ELSE 3
-            END,
-            v.appointment_number ASC
-    """, (str(doc_facility_id),))
     pending_patients = cursor.fetchall()
 
-    # 4. 今日已完成患者
-    cursor.execute("""
-        SELECT 
-            p.name,
-            p.patient_id,
-            v.appointment_number,
-            v.appointment_time,
-            v.completed_at
-        FROM visits v
-        JOIN patients p ON v.patient_id::text = p.patient_id::text
-        WHERE v.facility_id::text = %s::text
-        AND v.status = '已完成'
-        ORDER BY v.completed_at DESC
-    """, (str(doc_facility_id),))
+    # 3. 今日已完成患者
+    if doc_facility_id:
+        cursor.execute("""
+            SELECT 
+                p.name,
+                p.patient_id,
+                v.appointment_number,
+                v.appointment_time,
+                v.completed_at
+            FROM visits v
+            JOIN patients p ON v.patient_id::text = p.patient_id::text
+            WHERE v.facility_id::text = %s::text
+            AND v.status = '已完成'
+            ORDER BY v.completed_at DESC
+        """, (str(doc_facility_id),))
+    else:
+        cursor.execute("""
+            SELECT 
+                p.name,
+                p.patient_id,
+                v.appointment_number,
+                v.appointment_time,
+                v.completed_at
+            FROM visits v
+            JOIN patients p ON v.patient_id::text = p.patient_id::text
+            WHERE v.status = '已完成'
+            ORDER BY v.completed_at DESC
+        """)
     completed_patients = cursor.fetchall()
 
     conn.close()
 
+    return render_template(
+        "doctor.html",
+        doctor_name=doctor_name,
+        pending_patients=pending_patients,
+        completed_patients=completed_patients
+    )
    # -------------------------
 # 查看病患詳細資料與病歷
 # -------------------------
