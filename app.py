@@ -684,13 +684,13 @@ def doctor_home():
     cursor = conn.cursor()
 
     # 1. 查詢該醫師所屬的醫院 ID
-    cursor.execute("SELECT facility_id, name FROM doctors WHERE doctor_id = %s", (doctor_id,))
+    cursor.execute("SELECT facility_id, name FROM doctors WHERE doctor_id::text = %s::text", (str(doctor_id),))
     doc_data = cursor.fetchone()
     doc_facility_id = doc_data[0] if doc_data else None
 
     # 2. 今日待處理患者（依醫院過濾）
     cursor.execute("""
-        SELECT
+        SELECT 
             visits.visit_id,
             patients.name,
             patients.patient_id,
@@ -698,13 +698,13 @@ def doctor_home():
             visits.appointment_number,
             visits.appointment_time
         FROM visits
-        JOIN patients
-            ON visits.patient_id = patients.patient_id
+        JOIN patients 
+            ON visits.patient_id::text = patients.patient_id::text
         WHERE visits.visit_date = %s
-          AND visits.facility_id = %s
+          AND visits.facility_id::text = %s::text
           AND visits.status IN ('已報到', '已預約', '看診中')
-        ORDER BY
-            CASE
+        ORDER BY 
+            CASE 
                 WHEN visits.status = '已報到' THEN 0
                 WHEN visits.status = '看診中' THEN 1
                 WHEN visits.status = '已預約' THEN 2
@@ -712,12 +712,11 @@ def doctor_home():
             END,
             visits.appointment_number ASC
     """, (today, str(doc_facility_id)))
-
-    waiting_patients = cursor.fetchall()
+    pending_patients = cursor.fetchall()
 
     # 3. 今日已完成患者（依醫院過濾）
     cursor.execute("""
-        SELECT
+        SELECT 
             visits.visit_id,
             patients.name,
             patients.patient_id,
@@ -725,14 +724,13 @@ def doctor_home():
             visits.appointment_time,
             visits.completed_at
         FROM visits
-        JOIN patients
-            ON visits.patient_id = patients.patient_id
+        JOIN patients 
+            ON visits.patient_id::text = patients.patient_id::text
         WHERE visits.visit_date = %s
-          AND visits.facility_id = %s
+          AND visits.facility_id::text = %s::text
           AND visits.status = '已完成'
         ORDER BY visits.completed_at DESC
-""", (today, str(doc_facility_id)))
-
+    """, (today, str(doc_facility_id)))
     completed_patients = cursor.fetchall()
 
     conn.close()
