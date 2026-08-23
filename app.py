@@ -662,8 +662,7 @@ def doctor_home():
     doc_facility_id = str(doc_data[0]) if (doc_data and doc_data[0] is not None) else ""
     doctor_name = doc_data[1] if doc_data else "醫師"
 
-    # 2. 今日待處理患者（欄位順序完全對齊前端模板）
-    # 0: visit_id, 1: name, 2: patient_id, 3: status, 4: appointment_number/queue_number, 5: appointment_time
+    # 2. 今日待處理患者
     if doc_facility_id:
         cursor.execute("""
             SELECT 
@@ -671,7 +670,7 @@ def doctor_home():
                 COALESCE(p.name, '患者'),
                 v.patient_id,
                 v.status,
-                COALESCE(v.queue_number, v.appointment_number, 0),
+                COALESCE(v.appointment_number, 0),
                 COALESCE(v.appointment_time, '')
             FROM visits v
             LEFT JOIN patients p ON TRIM(v.patient_id::text) = TRIM(p.patient_id::text)
@@ -685,7 +684,7 @@ def doctor_home():
                     WHEN v.status = '已預約' THEN 2
                     ELSE 3
                 END,
-                COALESCE(v.queue_number, v.appointment_number, 0) ASC
+                COALESCE(v.appointment_number, 0) ASC
         """, (str(doc_facility_id),))
     else:
         cursor.execute("""
@@ -694,7 +693,7 @@ def doctor_home():
                 COALESCE(p.name, '患者'),
                 v.patient_id,
                 v.status,
-                COALESCE(v.queue_number, v.appointment_number, 0),
+                COALESCE(v.appointment_number, 0),
                 COALESCE(v.appointment_time, '')
             FROM visits v
             LEFT JOIN patients p ON TRIM(v.patient_id::text) = TRIM(p.patient_id::text)
@@ -707,7 +706,7 @@ def doctor_home():
                     WHEN v.status = '已預約' THEN 2
                     ELSE 3
                 END,
-                COALESCE(v.queue_number, v.appointment_number, 0) ASC
+                COALESCE(v.appointment_number, 0) ASC
         """)
     waiting_patients = cursor.fetchall()
 
@@ -717,7 +716,7 @@ def doctor_home():
             SELECT 
                 COALESCE(p.name, '患者'),
                 v.patient_id,
-                COALESCE(v.queue_number, v.appointment_number, 0),
+                COALESCE(v.appointment_number, 0),
                 COALESCE(v.appointment_time, ''),
                 v.completed_at
             FROM visits v
@@ -732,7 +731,7 @@ def doctor_home():
             SELECT 
                 COALESCE(p.name, '患者'),
                 v.patient_id,
-                COALESCE(v.queue_number, v.appointment_number, 0),
+                COALESCE(v.appointment_number, 0),
                 COALESCE(v.appointment_time, ''),
                 v.completed_at
             FROM visits v
@@ -742,8 +741,6 @@ def doctor_home():
             ORDER BY v.completed_at DESC
         """)
     completed_patients = cursor.fetchall()
-
-    conn.close()
     return render_template(
         "doctor.html",
         doctor_name=doctor_name,
