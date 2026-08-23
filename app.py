@@ -4115,7 +4115,7 @@ def appointment_success(appointment_number):
         current_number = "尚未叫號"
         estimated_time = "尚未估算"
 
-    conn.close()
+   conn.close()
 
     # -------------------------
     # 已完成
@@ -4124,7 +4124,110 @@ def appointment_success(appointment_number):
     if my_status == "已完成":
 
         return f"""
-        <h1>看診已完成！</h1>
+        <!DOCTYPE html>
+        <html lang="zh-TW">
+        <head>
+            <meta charset="UTF-8">
+            <title>看診已完成</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    background: linear-gradient(135deg, #d4ede2, #e8f5e9);
+                    min-height: 100vh;
+                    margin: 0;
+                    padding: 30px 20px;
+                    box-sizing: border-box;
+                    color: #2c3e50;
+                }}
+                button {{
+                    background-color: #0b4f6c;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    cursor: pointer;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>看診已完成！</h1>
+
+            <hr>
+
+            <h2>我的預約</h2>
+
+            <p>
+                <strong>預約號碼：</strong>
+                {my_number}
+            </p>
+
+            <p>
+                <strong>預約時間：</strong>
+                {appointment_time}
+            </p>
+
+            <p>
+                <strong>目前狀態：</strong>
+                已完成
+            </p>
+
+            <hr>
+
+            <h2>本次看診</h2>
+
+            <p>
+                <strong>看診狀態：</strong>
+                本次看診已完成
+            </p>
+
+            <p>
+                <strong>本次症狀：</strong>
+                {chief_complaint}
+            </p>
+
+            <hr>
+
+            <button onclick="location.href='/patient-home'">
+                回到患者首頁
+            </button>
+        </body>
+        </html>
+        """
+
+    # -------------------------
+    # 一般候診狀態
+    # -------------------------
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <title>候診進度</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                background: linear-gradient(135deg, #d4ede2, #e8f5e9);
+                min-height: 100vh;
+                margin: 0;
+                padding: 30px 20px;
+                box-sizing: border-box;
+                color: #2c3e50;
+            }}
+            button {{
+                background-color: #0b4f6c;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 14px;
+                cursor: pointer;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>預約成功！</h1>
 
         <hr>
 
@@ -4142,16 +4245,7 @@ def appointment_success(appointment_number):
 
         <p>
             <strong>目前狀態：</strong>
-            已完成
-        </p>
-
-        <hr>
-
-        <h2>本次看診</h2>
-
-        <p>
-            <strong>看診狀態：</strong>
-            本次看診已完成
+            {my_status}
         </p>
 
         <p>
@@ -4161,75 +4255,39 @@ def appointment_success(appointment_number):
 
         <hr>
 
+        <h2>目前候診資訊</h2>
+
+        <p>
+            <strong>目前叫號：</strong>
+            {current_number}
+        </p>
+
+        <p>
+            <strong>前方等待人數：</strong>
+            {waiting_count} 人
+        </p>
+
+        <p>
+            <strong>預估等待時間：</strong>
+            約 {estimated_wait} 分鐘
+        </p>
+
+        <p>
+            <strong>預計看診時間：</strong>
+            約 {estimated_time}
+        </p>
+
+        <hr>
+
+        <p>
+            預約完成後，請於看診前至醫院報到櫃台完成報到。
+        </p>
+
         <button onclick="location.href='/patient-home'">
             回到患者首頁
         </button>
-        """
-
-    # -------------------------
-    # 一般候診狀態
-    # -------------------------
-
-    return f"""
-    <h1>預約成功！</h1>
-
-    <hr>
-
-    <h2>我的預約</h2>
-
-    <p>
-        <strong>預約號碼：</strong>
-        {my_number}
-    </p>
-
-    <p>
-        <strong>預約時間：</strong>
-        {appointment_time}
-    </p>
-
-    <p>
-        <strong>目前狀態：</strong>
-        {my_status}
-    </p>
-
-    <p>
-        <strong>本次症狀：</strong>
-        {chief_complaint}
-    </p>
-
-    <hr>
-
-    <h2>目前候診資訊</h2>
-
-    <p>
-        <strong>目前叫號：</strong>
-        {current_number}
-    </p>
-
-    <p>
-        <strong>前方等待人數：</strong>
-        {waiting_count} 人
-    </p>
-
-    <p>
-        <strong>預估等待時間：</strong>
-        約 {estimated_wait} 分鐘
-    </p>
-
-    <p>
-        <strong>預計看診時間：</strong>
-        約 {estimated_time}
-    </p>
-
-    <hr>
-
-    <p>
-        預約完成後，請於看診前至醫院報到櫃台完成報到。
-    </p>
-
-    <button onclick="location.href='/patient-home'">
-        回到患者首頁
-    </button>
+    </body>
+    </html>
     """
 
 @app.route("/patient-fhir")
