@@ -3937,13 +3937,10 @@ def appointment_success(appointment_number):
     if "patient_id" not in session:
         return redirect("/patient")
 
-    today = datetime.now().strftime("%Y-%m-%d")
-
     conn = get_db_connection()
     cursor = conn.cursor()
 
-
-    # 找到這位患者今天的預約
+    # 找到這位患者今天的預約（使用台灣時區比對與字串防護）
     cursor.execute("""
         SELECT 
             facility_id,
@@ -3952,13 +3949,13 @@ def appointment_success(appointment_number):
             status,
             chief_complaint
         FROM visits
-        WHERE patient_id = %s
-        AND visit_date = %s
+        WHERE TRIM(patient_id::text) = TRIM(%s::text)
+        AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
         AND appointment_number = %s
+        ORDER BY visit_id DESC
         LIMIT 1
     """, (
-        session["patient_id"],
-        today,
+        str(session["patient_id"]),
         appointment_number
     ))
 
@@ -3973,19 +3970,6 @@ def appointment_success(appointment_number):
     appointment_time = visit[2]
     my_status = visit[3]
     chief_complaint = visit[4]
-
-    visit = cursor.fetchone()
-
-    if not visit:
-        conn.close()
-        return "找不到預約資料"
-
-    visit_id = visit[0]
-    facility_id = visit[1]
-    my_number = visit[2]
-    appointment_time = visit[3]
-    my_status = visit[4]
-    chief_complaint = visit[5]
 
     # -------------------------
     # 預設值
@@ -4006,13 +3990,10 @@ def appointment_success(appointment_number):
         cursor.execute("""
             SELECT COUNT(*)
             FROM visits
-            WHERE facility_id = %s
-            AND visit_date = %s
+            WHERE TRIM(facility_id::text) = TRIM(%s::text)
+            AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             AND status IN ('已報到', '看診中')
-        """, (
-            facility_id,
-            today
-        ))
+        """, (str(facility_id),))
 
         checked_in_count = cursor.fetchone()[0]
 
@@ -4020,13 +4001,12 @@ def appointment_success(appointment_number):
         cursor.execute("""
             SELECT COUNT(*)
             FROM visits
-            WHERE facility_id = %s
-            AND visit_date = %s
+            WHERE TRIM(facility_id::text) = TRIM(%s::text)
+            AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             AND status = '已預約'
             AND appointment_number < %s
         """, (
-            facility_id,
-            today,
+            str(facility_id),
             my_number
         ))
 
@@ -4060,10 +4040,11 @@ def appointment_success(appointment_number):
         cursor.execute("""
             SELECT COUNT(*)
             FROM visits
-            WHERE visit_date = %s
+            WHERE TRIM(facility_id::text) = TRIM(%s::text)
+            AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             AND status = '已報到'
             AND appointment_number < %s
-        """, (today, my_number))
+        """, (str(facility_id), my_number))
 
         earlier_checked_in = cursor.fetchone()[0]
 
@@ -4071,9 +4052,10 @@ def appointment_success(appointment_number):
         cursor.execute("""
             SELECT COUNT(*)
             FROM visits
-            WHERE visit_date = %s
+            WHERE TRIM(facility_id::text) = TRIM(%s::text)
+            AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             AND status = '看診中'
-        """, (today,))
+        """, (str(facility_id),))
 
         consulting_count = cursor.fetchone()[0]
 
