@@ -2266,7 +2266,7 @@ def patient_home():
         </p>
 
         <br>
-        <button onclick="location.href='/waiting-status'">查詢候診進度</button>
+        <button onclick="location.href='/appointment-success/{appointment_number}'">查詢候診進度</button>
 
         """
 
@@ -3577,7 +3577,7 @@ def select_facility():
         </p>
 
         <hr>
-        
+
 
         <br><br>
 
