@@ -839,7 +839,7 @@ def doctor_patient_detail(patient_id):
             <p><strong>第 {len(history)-i} 次看診</strong></p>
             <p>日期：{visit[1]}</p>
             <p>時間：{visit[2]}</p>
-            <button onclick="location.href='/hospital-prescription-detail/{visit[0]}'">
+            <button onclick="location.href='/doctor-prescription-detail/{visit[0]}'">
                 查看詳細資料
             </button>
         </div>
@@ -871,7 +871,80 @@ def doctor_patient_detail(patient_id):
     {history_html}
     <hr>
     <button onclick="location.href='/doctor-fhir/{patient[0]}'">查看 FHIR 資料</button>
-    <button onclick="location.href='/doctor-home'">回到醫生首頁</button>
+    <button onclick="location.href='/doctor'">回到醫生首頁</button>
+    """
+
+@app.route("/doctor-prescription-detail/<visit_id>")
+def doctor_prescription_detail(visit_id):
+    if "doctor_id" not in session and "doctor" not in session:
+        return redirect("/doctor")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT 
+            visits.visit_id,
+            visits.visit_date,
+            visits.appointment_time,
+            visits.chief_complaint,
+            visits.diagnosis,
+            visits.prescription,
+            visits.completed_at,
+            patients.patient_id,
+            patients.name
+        FROM visits
+        JOIN patients ON visits.patient_id::text = patients.patient_id::text
+        WHERE visits.visit_id::text = %s::text
+        LIMIT 1
+    """, (str(visit_id),))
+
+    record = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not record:
+        return "<h1>找不到該處方紀錄</h1><button onclick='window.history.back()'>返回</button>"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <title>處方詳細資料 - CareBridge</title>
+        <style>
+            body {{
+                font-family: sans-serif;
+                padding: 25px;
+                background-color: #f7faf9;
+            }}
+            .card {{
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid #ddd;
+                max-width: 600px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>處方詳細資料</h2>
+            <hr>
+            <p><strong>病患姓名：</strong> {record[8]}</p>
+            <p><strong>Patient ID：</strong> {record[7]}</p>
+            <p><strong>看診日期：</strong> {record[1]}</p>
+            <p><strong>預約時間：</strong> {record[2]}</p>
+            <p><strong>主訴／症狀：</strong> {record[3] or "無"}</p>
+            <p><strong>診斷結果：</strong> {record[4] or "尚未填寫"}</p>
+            <p><strong>處方用藥：</strong> {record[5] or "尚未開立"}</p>
+            <p><strong>完成時間：</strong> {record[6] or "未完成"}</p>
+            <br>
+            <button onclick="window.history.back()">返回病患資料</button>
+            <button onclick="location.href='/doctor'">回到醫生首頁</button>
+        </div>
+    </body>
+    </html>
     """
 
 @app.route("/doctor-start/<int:visit_id>", methods=["POST"])
