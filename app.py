@@ -677,6 +677,7 @@ def doctor_home():
             LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
             WHERE v.facility_id::text = %s::text
             AND v.status IN ('已報到', '已預約', '看診中')
+            AND v.visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
             ORDER BY 
                 CASE 
                     WHEN v.status = '看診中' THEN 0
@@ -697,7 +698,9 @@ def doctor_home():
                 v.appointment_time
             FROM visits v
             LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
+            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
             WHERE v.status IN ('已報到', '已預約', '看診中')
+            AND v.visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
             ORDER BY 
                 CASE 
                     WHEN v.status = '看診中' THEN 0
@@ -722,6 +725,7 @@ def doctor_home():
             LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
             WHERE v.facility_id::text = %s::text
             AND v.status = '已完成'
+            AND v.visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
             ORDER BY v.completed_at DESC
         """, (str(doc_facility_id),))
     else:
@@ -735,6 +739,7 @@ def doctor_home():
             FROM visits v
             LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
             WHERE v.status = '已完成'
+            AND v.visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
             ORDER BY v.completed_at DESC
         """)
     completed_patients = cursor.fetchall()
