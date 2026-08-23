@@ -90,6 +90,35 @@
     .btn-group a:hover {
         background: #e2e6ea;
     }
+    /* 使用教學外層間距 */
+.tutorial-btn-wrap {
+    margin-top: 14px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+/* 珊瑚橘質感按鈕 */
+.tutorial-coral-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #e76f51;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 7px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+    letter-spacing: 0.5px;
+    box-shadow: 0 3px 8px rgba(231, 111, 81, 0.28);
+    transition: all 0.2s ease;
+}
+
+.tutorial-coral-btn:hover {
+    background-color: #d85a3a;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(231, 111, 81, 0.38);
+}
 </style>
 
 </head>
@@ -110,6 +139,12 @@
                 <a href="/doctor">🩺 我是醫生</a>
                 <a href="/patient">💊 我是患者</a>
                 <a href="/hospital-login">🏥 醫院平台</a>
+            </div>
+            <!-- YouTube 教學影片按鈕 -->
+            <div class="tutorial-btn-wrap">
+                <a href="https://www.youtube.com" target="_blank" class="tutorial-coral-btn">
+                使用教學
+                </a>
             </div>
         </div>
     </div>
