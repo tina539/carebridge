@@ -2264,6 +2264,10 @@ def patient_home():
             <strong>預估等待時間：</strong>
             約 {average_wait or 0} 分鐘
         </p>
+
+        <br>
+        <button onclick="location.href='/waiting-status'">查詢候診進度</button>
+
         """
 
     else:
@@ -3573,12 +3577,7 @@ def select_facility():
         </p>
 
         <hr>
-
-        <button
-            onclick="location.href='/appointment-success/{appointment_number}'"
-        >
-            查看候診進度
-        </button>
+        
 
         <br><br>
 
