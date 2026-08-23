@@ -3458,9 +3458,10 @@ def select_facility():
         >
 
         <title>CareBridge - 預約成功</title>
-        <title>CareBridge - 預約成功</title>
+
+    <title>CareBridge - 預約成功</title>
     <style>
-        body {
+        body {{
             margin: 0;
             padding: 40px 20px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -3470,10 +3471,9 @@ def select_facility():
             display: flex;
             flex-direction: column;
             align-items: center;
-        }
+        }}
 
-        /* 預約成功白底卡片容器 */
-        .container {
+        .container {{
             background: #ffffff;
             max-width: 520px;
             width: 100%;
@@ -3481,36 +3481,36 @@ def select_facility():
             padding: 30px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.06);
             box-sizing: border-box;
-        }
+        }}
 
-        h1 {
+        h1 {{
             color: #0b4f6c;
             margin-top: 0;
             font-size: 24px;
             text-align: center;
-        }
+        }}
 
-        h2 {
+        h2 {{
             color: #2b3a4a;
             font-size: 18px;
             margin-top: 20px;
-        }
+        }}
 
-        hr {
+        hr {{
             border: none;
             height: 1px;
             background-color: #e5e7eb;
             margin: 18px 0;
-        }
+        }}
 
-        p {
+        p {{
             color: #4b5563;
             font-size: 15px;
             line-height: 1.6;
             margin: 10px 0;
-        }
+        }}
 
-        button {
+        button {{
             background-color: #0b4f6c;
             color: #ffffff;
             border: none;
@@ -3522,12 +3522,12 @@ def select_facility():
             width: 100%;
             margin-top: 15px;
             transition: background-color 0.2s ease, transform 0.1s ease;
-        }
+        }}
 
-        button:hover {
+        button:hover {{
             background-color: #08384d;
             transform: translateY(-1px);
-        }
+        }}
     </style>
 </head>
     </head>
