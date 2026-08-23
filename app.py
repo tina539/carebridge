@@ -3016,12 +3016,14 @@ def visit():
         cursor.execute("""
             SELECT COUNT(*)
             FROM visits
-            WHERE facility_id::text = %s::text
-            AND visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
+            WHERE TRIM(facility_id::text) = TRIM(%s::text)
+            AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             AND status IN ('已預約', '已報到', '看診中')
         """, (str(facility_id),))
 
         waiting_count = cursor.fetchone()[0] or 0
+
+        print(f"DEBUG 院所 ID: {facility_id}, 查出人數: {waiting_count}")
 
         # ------------------
         # 剩餘名額
