@@ -2269,12 +2269,6 @@ def patient_home():
             <strong>預估等待時間：</strong>
             約 {average_wait or 0} 分鐘
         </p>
-
-        <br>
-
-        <button onclick="location.href='/my-queue'">
-            查看候診進度
-        </button>
         """
 
     else:
@@ -3016,59 +3010,46 @@ def visit():
             longitude
         )
 
-        # -------------------------
+        # ------------------
         # 今天候診人數
-        # -------------------------
-
+        # ------------------
         cursor.execute("""
             SELECT COUNT(*)
             FROM visits
-            WHERE facility_id = %s
-            AND visit_date = %s
+            WHERE facility_id::text = %s::text
+            AND visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
             AND status IN ('已預約', '已報到', '看診中')
-        """, (
-            facility_id,
-            today
-        ))
+        """, (str(facility_id),))
 
-        waiting_count = cursor.fetchone()[0]
+        waiting_count = cursor.fetchone()[0] or 0
 
-        # -------------------------
+        # ------------------
         # 剩餘名額
-        # -------------------------
-
+        # ------------------
         available_slots = max(
-            daily_capacity - waiting_count,
+            (daily_capacity or 50) - waiting_count,
             0
         )
 
-        # -------------------------
-        # 推薦分數
-        # -------------------------
-
+        # ------------------
+        # 推薦分數（不計距離，純依待診人數與看診耗時評估）
+        # ------------------
         score = (
-            distance * 0.3
-            + average_wait * 0.5
-            + waiting_count * 0.2
+            waiting_count * 10.0
+            + (average_wait or 0) * 0.1
         )
 
         recommended_facilities.append({
-
             "facility": facility,
-
             "distance": distance,
-
             "waiting_count": waiting_count,
-
             "available_slots": available_slots,
-
             "score": score
         })
 
-    # =========================
-    # 排序
-    # =========================
-
+    # ==================
+    # 排序（分數越低越優先推薦）
+    # ==================
     recommended_facilities.sort(
         key=lambda x: x["score"]
     )
