@@ -663,7 +663,7 @@ def doctor_home():
     doctor_name = doc_data[1] if doc_data else "醫師"
 
     # 2. 今日待處理患者（欄位順序完全對齊前端模板）
-    # 0: visit_id, 1: name, 2: patient_id, 3: status, 4: appointment_number, 5: appointment_time
+    # 0: visit_id, 1: name, 2: patient_id, 3: status, 4: appointment_number/queue_number, 5: appointment_time
     if doc_facility_id:
         cursor.execute("""
             SELECT 
@@ -671,13 +671,13 @@ def doctor_home():
                 COALESCE(p.name, '患者'),
                 v.patient_id,
                 v.status,
-                v.appointment_number,
-                v.appointment_time
+                COALESCE(v.queue_number, v.appointment_number, 0),
+                COALESCE(v.appointment_time, '')
             FROM visits v
-            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
-            WHERE v.facility_id::text = %s::text
+            LEFT JOIN patients p ON TRIM(v.patient_id::text) = TRIM(p.patient_id::text)
+            WHERE TRIM(v.facility_id::text) = TRIM(%s::text)
             AND v.status IN ('已報到', '已預約', '看診中')
-            AND v.visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
+            AND v.visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             ORDER BY 
                 CASE 
                     WHEN v.status = '看診中' THEN 0
@@ -685,7 +685,7 @@ def doctor_home():
                     WHEN v.status = '已預約' THEN 2
                     ELSE 3
                 END,
-                v.appointment_number ASC
+                COALESCE(v.queue_number, v.appointment_number, 0) ASC
         """, (str(doc_facility_id),))
     else:
         cursor.execute("""
@@ -694,13 +694,12 @@ def doctor_home():
                 COALESCE(p.name, '患者'),
                 v.patient_id,
                 v.status,
-                v.appointment_number,
-                v.appointment_time
+                COALESCE(v.queue_number, v.appointment_number, 0),
+                COALESCE(v.appointment_time, '')
             FROM visits v
-            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
-            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
+            LEFT JOIN patients p ON TRIM(v.patient_id::text) = TRIM(p.patient_id::text)
             WHERE v.status IN ('已報到', '已預約', '看診中')
-            AND v.visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
+            AND v.visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             ORDER BY 
                 CASE 
                     WHEN v.status = '看診中' THEN 0
@@ -708,7 +707,7 @@ def doctor_home():
                     WHEN v.status = '已預約' THEN 2
                     ELSE 3
                 END,
-                v.appointment_number ASC
+                COALESCE(v.queue_number, v.appointment_number, 0) ASC
         """)
     waiting_patients = cursor.fetchall()
 
@@ -718,14 +717,14 @@ def doctor_home():
             SELECT 
                 COALESCE(p.name, '患者'),
                 v.patient_id,
-                v.appointment_number,
-                v.appointment_time,
+                COALESCE(v.queue_number, v.appointment_number, 0),
+                COALESCE(v.appointment_time, ''),
                 v.completed_at
             FROM visits v
-            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
-            WHERE v.facility_id::text = %s::text
+            LEFT JOIN patients p ON TRIM(v.patient_id::text) = TRIM(p.patient_id::text)
+            WHERE TRIM(v.facility_id::text) = TRIM(%s::text)
             AND v.status = '已完成'
-            AND v.visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
+            AND v.visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             ORDER BY v.completed_at DESC
         """, (str(doc_facility_id),))
     else:
@@ -733,19 +732,18 @@ def doctor_home():
             SELECT 
                 COALESCE(p.name, '患者'),
                 v.patient_id,
-                v.appointment_number,
-                v.appointment_time,
+                COALESCE(v.queue_number, v.appointment_number, 0),
+                COALESCE(v.appointment_time, ''),
                 v.completed_at
             FROM visits v
-            LEFT JOIN patients p ON v.patient_id::text = p.patient_id::text
+            LEFT JOIN patients p ON TRIM(v.patient_id::text) = TRIM(p.patient_id::text)
             WHERE v.status = '已完成'
-            AND v.visit_date::text = (CURRENT_DATE AT TIME ZONE 'Asia/Taipei')::text
+            AND v.visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
             ORDER BY v.completed_at DESC
         """)
     completed_patients = cursor.fetchall()
 
     conn.close()
-
     return render_template(
         "doctor.html",
         doctor_name=doctor_name,
