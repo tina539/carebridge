@@ -2540,7 +2540,29 @@ def specified_facility():
         >
 
         <title>CareBridge - 選擇醫療院所</title>
+
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                background: linear-gradient(135deg, #d4ede2, #e8f5e9);
+                min-height: 100vh;
+                margin: 0;
+                padding: 30px 20px;
+                box-sizing: border-box;
+                color: #2c3e50;
+            }}
+            button {{
+                background-color: #0b4f6c;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 14px;
+                cursor: pointer;
+            }}
+        </style>
     </head>
+
 
     <body>
 
@@ -2877,6 +2899,27 @@ def visit():
             <title>
                 CareBridge - 預約成功
             </title>
+
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    background: linear-gradient(135deg, #d4ede2, #e8f5e9);
+                    min-height: 100vh;
+                    margin: 0;
+                    padding: 30px 20px;
+                    box-sizing: border-box;
+                    color: #2c3e50;
+                }}
+                button {{
+                    background-color: #0b4f6c;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    cursor: pointer;
+                }}
+            </style>
 
         </head>
 
