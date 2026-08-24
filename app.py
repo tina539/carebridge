@@ -4023,18 +4023,30 @@ def appointment_success(appointment_number):
     chief_complaint = visit[4]
 
     # -------------------------
-    # 預設值
+    # 預設值與查詢當前叫號
     # -------------------------
 
     waiting_count = 0
     estimated_wait = 0
-    current_number = "尚未叫號"
     estimated_time = "尚未估算"
+
+    # 👉 就在這裡加上這段查詢：
+    cursor.execute("""
+        SELECT appointment_number
+        FROM visits
+        WHERE TRIM(facility_id::text) = TRIM(%s::text)
+        AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
+        AND status = '看診中'
+        ORDER BY appointment_number DESC
+        LIMIT 1
+    """, (str(facility_id),))
+    curr_row = cursor.fetchone()
+    current_number = curr_row[0] if curr_row else "尚未叫號"
 
     # -------------------------
     # 已預約
     # -------------------------
-
+    
     if my_status == "已預約":
 
         # 已報到、看診中的人全部優先
