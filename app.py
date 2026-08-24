@@ -4158,7 +4158,7 @@ def appointment_success(appointment_number):
         current_number = "尚未叫號"
         estimated_time = "尚未估算"
 
-   conn.close()
+    conn.close()
 
     # -------------------------
     # 已完成
