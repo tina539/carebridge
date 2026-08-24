@@ -519,20 +519,34 @@ def init_db():
 
 
     for facility in test_facilities:
-
+        name = facility[0]
+        
+        # 檢查資料庫是否已存在該醫院
         cursor.execute("""
-            SELECT facility_id
-            FROM medical_facilities
-            WHERE name = %s
+            SELECT facility_id 
+            FROM medical_facilities 
+            WHERE name = %s 
             LIMIT 1
-        """, (facility[0],))
-
+        """, (name,))
         existing_facility = cursor.fetchone()
 
-        if not existing_facility:
-
+        if existing_facility:
+            # 如果已存在，直接更新最新的資料（包含科別、地址等）
             cursor.execute("""
-                INSERT INTO medical_facilities
+                UPDATE medical_facilities
+                SET facility_type = %s,
+                    address = %s,
+                    latitude = %s,
+                    longitude = %s,
+                    specialties = %s,
+                    average_wait_minutes = %s,
+                    daily_capacity = %s
+                WHERE name = %s
+            """, (facility[1], facility[2], facility[3], facility[4], facility[5], facility[6], facility[7], name))
+        else:
+            # 如果不存在，才進行 INSERT 新增
+            cursor.execute("""
+                INSERT INTO medical_facilities 
                 (
                     name,
                     facility_type,
