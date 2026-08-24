@@ -2250,11 +2250,7 @@ def patient_home():
             {chief_complaint or "未提供"}
         </p>
 
-        <p>
-            <strong>AI 症狀摘要：</strong>
-            {ai_summary or "尚未產生"}
-        </p>
-
+        
         <p>
             <strong>目前候診人數：</strong>
             {waiting_count} 人
