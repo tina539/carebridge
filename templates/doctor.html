@@ -115,20 +115,20 @@
 
         <tr>
 
+            <td>{{ patient[0] }}</td>
+
             <td>{{ patient[1] }}</td>
 
             <td>{{ patient[2] }}</td>
 
             <td>{{ patient[3] }}</td>
 
-            <td>{{ patient[4] }}</td>
-
-            <td>{{ patient[5] }}</td>
+            <td>{{ patient[4] if patient[4] else '已完成' }}</td>
 
             <td>
 
                 <button
-                    onclick="location.href='/doctor-patient-detail/{{ patient[2] }}'"
+                    onclick="location.href='/doctor-patient-detail/{{ patient[1] }}'"
                 >
                     查看紀錄
                 </button>
@@ -138,6 +138,14 @@
         </tr>
 
         {% endfor %}
+
+    </table>
+
+    {% else %}
+
+    <p>今日目前沒有已完成患者。</p>
+
+    {% endif %}
 
     </table>
 
