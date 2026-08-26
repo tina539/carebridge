@@ -3072,20 +3072,20 @@ def visit():
     # 剩餘名額（扣除今日所有 已預約、已報到、看診中、已完成 的患者）
     # ------------------
     cursor.execute("""
-            SELECT COUNT(*)
-            FROM visits
-            WHERE TRIM(facility_id::text) = TRIM(%s::text)
-              AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
-              AND status IN ('已預約', '已報到', '看診中', '已完成')
-        """, (str(facility_id),))
+        SELECT COUNT(*)
+        FROM visits
+        WHERE TRIM(facility_id::text) = TRIM(%s::text)
+          AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
+          AND status IN ('已預約', '已報到', '看診中', '已完成')
+    """, (str(facility_id),))
 
-        total_booked_count = cursor.fetchone()[0]
+    total_booked_count = cursor.fetchone()[0]
 
-        available_slots = max(
-            (daily_capacity or 20) - total_booked_count,
-            0
-        )
-
+    available_slots = max(
+        (daily_capacity or 20) - total_booked_count,
+        0
+    )
+    
         # ------------------
         # 推薦分數（不計距離，純依待診人數與看診耗時評估）
         # ------------------
