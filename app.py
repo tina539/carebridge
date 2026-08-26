@@ -50,6 +50,13 @@ def test_db():
     except Exception as e:
 
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>PostgreSQL 連線失敗</h1>
         <pre>{e}</pre>
         """
@@ -1304,6 +1311,13 @@ def doctor_complete(visit_id):
         print("FHIR Server connection error:", e)
 
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>看診完成失敗</h1>
 
         <p>無法連線至 FHIR Server。</p>
@@ -1330,6 +1344,13 @@ def doctor_complete(visit_id):
         )
 
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>看診完成失敗</h1>
 
         <p>FHIR Server 回應錯誤。</p>
@@ -1667,6 +1688,13 @@ def hospital_checkin_confirm():
     if id_number != actual_id:
         conn.close()
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>身分證字號驗證失敗</h1>
         <p>輸入的身分證字號與患者【{visit[1]}】不相符，請重新確認。</p>
         <button onclick="location.href='/hospital-checkin'">
@@ -1798,6 +1826,13 @@ def doctor_fhir(patient_id):
 
     if response.status_code != 200:
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>FHIR 查詢失敗</h1>
 
         <p>HTTP Status Code：{response.status_code}</p>
@@ -2101,6 +2136,13 @@ def patient():
 
     if not patient:
         return """
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>登入失敗</h1>
 
         <p>找不到此身分證字號，請確認是否已註冊。</p>
@@ -2137,12 +2179,19 @@ def login():
         return redirect("/patient-home")
 
     return """
-<h1>登入失敗</h1>
-<p>找不到這個手機號碼，請確認是否註冊過。</p>
+    <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
+    <h1>登入失敗</h1>
+    <p>找不到這個手機號碼，請確認是否註冊過。</p>
 
-<button onclick="location.href='/patient'">
-    返回登入
-</button>
+    <button onclick="location.href='/patient'">
+        返回登入
+    </button>
 
 <button onclick="location.href='/register'">
     前往註冊
@@ -2447,11 +2496,11 @@ def choose_facility():
 
         <title>CareBridge - 看診方式</title>
         <style>
-        body {{
+        body {
             background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
             font-family: sans-serif;
             padding: 20px;
-        }}
+        }
     </style>
     </head>
 
@@ -2729,6 +2778,13 @@ def visit():
         conn.close()
 
         return """
+        <style>
+        body {
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }
+    </style>
         <h1>今天已有預約</h1>
 
         <p>
@@ -4729,6 +4785,13 @@ def send_fhir():
     if search_response.status_code != 200:
 
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>FHIR Server 查詢失敗</h1>
 
         <p>
@@ -4801,6 +4864,13 @@ def send_fhir():
     if response.status_code not in [200, 201]:
 
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>FHIR Patient 建立/更新失敗</h1>
 
         <p>
@@ -5166,6 +5236,13 @@ def get_fhir():
 
     if response.status_code != 200:
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>FHIR Server 查詢失敗</h1>
         <p>HTTP Status Code：{response.status_code}</p>
         <pre>{response.text}</pre>
@@ -5317,6 +5394,13 @@ def register():
     if existing_patient:
         conn.close()
         return """
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>註冊失敗</h1>
         <p>此身分證字號已經註冊過。</p>
         <button onclick="location.href='/patient'">
