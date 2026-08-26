@@ -6105,6 +6105,15 @@ def hospital_fhir_detail(patient_id):
         LIMIT 1
     """, (str(patient_id),))
     patient = cursor.fetchone()
+
+    # 抓取該病患在資料庫中的所有就診紀錄 visit_id
+    cursor.execute("""
+        SELECT visit_id
+        FROM visits
+        WHERE patient_id::text = %s::text
+        ORDER BY visit_date DESC, visit_id DESC
+    """, (str(patient_id),))
+    visits = cursor.fetchall()
     conn.close()
 
     if not patient:
@@ -6117,7 +6126,7 @@ def hospital_fhir_detail(patient_id):
             }
         </style>
         <h1>找不到病患資料</h1>
-        <button onclick="location.href='/hospital-prescription'">返回處方列表</button>
+        <button onclick="history.back()">返回</button>
         """
 
     import json
@@ -6140,12 +6149,32 @@ def hospital_fhir_detail(patient_id):
             return f"連線錯誤: {str(e)}"
         return "無資料"
 
-    # 分別查詢 5 大 FHIR 資源
+    # 1. 查詢病患 5 大基本健康資源
     patient_json = fetch_fhir("Patient", f"https://carebridge.example/patient-id|{patient_id}")
     condition_json = fetch_fhir("Condition", f"https://carebridge.example/chronic-condition|{patient_id}")
     allergy_json = fetch_fhir("AllergyIntolerance", f"https://carebridge.example/patient-id|{patient_id}-allergy")
     medication_json = fetch_fhir("MedicationStatement", f"https://carebridge.example/patient-id|{patient_id}-medication")
-    family_json = fetch_fhir("FamilyMemberHistory", f"https://carebridge.example/patient-id|{patient_id}-family")
+    family_json = fetch_fhir("FamilyMemberHistory", f"https://carebridge.example/patient-id|{patient_id}-family-history")
+
+    # 2. 查詢該病患所有歷史看診的 FHIR 資源 (Encounter / Condition / MedicationRequest)
+    history_fhir_html = ""
+    for v in visits:
+        v_id = v[0]
+        enc_json = fetch_fhir("Encounter", f"https://carebridge.example/encounter|{patient_id}-{v_id}")
+        cond_json = fetch_fhir("Condition", f"https://carebridge.example/condition|{patient_id}-{v_id}")
+        med_json = fetch_fhir("MedicationRequest", f"https://carebridge.example/medication-request|{patient_id}-{v_id}")
+
+        if "無資料" not in enc_json or "無資料" not in cond_json or "無資料" not in med_json:
+            history_fhir_html += f"""
+            <h2>Encounter</h2>
+            <pre>{enc_json}</pre>
+
+            <h2>Condition</h2>
+            <pre>{cond_json}</pre>
+
+            <h2>MedicationRequest</h2>
+            <pre>{med_json}</pre>
+            """
 
     return f"""
     <!DOCTYPE html>
@@ -6158,25 +6187,27 @@ def hospital_fhir_detail(patient_id):
                 background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
                 font-family: sans-serif;
                 padding: 30px;
-                line-height: 1.6;
+                line-height: 1.5;
             }}
             h1 {{
-                font-size: 26px;
+                font-size: 24px;
+                font-weight: bold;
                 margin-bottom: 25px;
             }}
             h2 {{
-                font-size: 20px;
+                font-size: 18px;
+                font-weight: bold;
                 margin-top: 25px;
-                margin-bottom: 8px;
+                margin-bottom: 5px;
             }}
             pre {{
                 background: transparent;
-                color: #222;
-                font-family: Consolas, "Courier New", monospace;
-                font-size: 13px;
+                color: #000;
+                font-family: monospace;
+                font-size: 12px;
                 white-space: pre-wrap;
                 word-break: break-all;
-                margin: 0 0 20px 0;
+                margin: 0 0 15px 0;
             }}
             button {{
                 padding: 8px 18px;
@@ -6204,6 +6235,9 @@ def hospital_fhir_detail(patient_id):
 
         <h2>FamilyMemberHistory (家族疾病史)</h2>
         <pre>{family_json}</pre>
+
+        <h1>所有就診紀錄</h1>
+        {history_fhir_html}
 
         <hr>
         <button onclick="history.back()">返回處方資訊</button>
