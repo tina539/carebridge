@@ -1526,84 +1526,48 @@ def doctor_complete(visit_id):
     </button>
     """
 
-@app.route("/hospital-checkin", methods=["GET", "POST"])
+@app.route("/hospital-checkin", methods=["GET"])
 def hospital_checkin():
 
     if "hospital_user" not in session:
         return redirect("/hospital-login")
 
-    # GET：顯示報到頁
-    if request.method == "GET":
-        return render_template("hospital-checkin.html")
-
-    id_number = request.form.get(
-        "id_number",
-        ""
-    ).strip().upper()
-
-    if not id_number:
-        return """
-        <h1>請輸入身分證字號</h1>
-
-        <button onclick="location.href='/hospital-checkin'">
-            返回
-        </button>
-        """
-
     today = datetime.now().strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
+    hospital_name = session.get("hospital_name", "醫院端")
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # 查詢今日該院所「已預約（尚未報到）」的患者名單
     cursor.execute("""
         SELECT
             visits.visit_id,
-            patients.name,
+            COALESCE(patients.name, '患者'),
             patients.patient_id,
-            patients.id_number,
-            visits.appointment_number,
-            visits.appointment_time,
-            visits.chief_complaint,
-            visits.status
+            COALESCE(visits.appointment_number, 0),
+            COALESCE(visits.appointment_time, '')
         FROM visits
         JOIN patients
             ON visits.patient_id = patients.patient_id
-        WHERE patients.id_number = %s
-        AND TRIM(visits.facility_id::text) = TRIM(%s::text)
+        WHERE TRIM(visits.facility_id::text) = TRIM(%s::text)
         AND visits.visit_date = %s
         AND visits.status = '已預約'
-        ORDER BY visits.visit_id DESC
-        LIMIT 1
+        ORDER BY visits.appointment_number ASC
     """, (
-        id_number,
         str(facility_id),
         today
     ))
 
-    visit = cursor.fetchone()
-
+    waiting_patients = cursor.fetchall()
     conn.close()
 
-    if not visit:
-        return """
-        <h1>找不到今天的預約</h1>
-
-        <p>
-            請確認身分證字號是否正確，
-            或確認今天是否有預約。
-        </p>
-
-        <button onclick="location.href='/hospital-checkin'">
-            返回
-        </button>
-        """
-
     return render_template(
-        "hospital-confirm.html",
-        visit=visit,
-        id_number=id_number
+        "hospital-checkin.html",
+        hospital_name=hospital_name,
+        patients=waiting_patients
     )
+
 
 @app.route("/hospital-checkin-confirm", methods=["POST"])
 def hospital_checkin_confirm():
@@ -1611,10 +1575,16 @@ def hospital_checkin_confirm():
     if "hospital_user" not in session:
         return redirect("/hospital-login")
 
-    id_number = request.form.get(
-        "id_number",
-        ""
-    ).strip().upper()
+    visit_id = request.form.get("visit_id", "").strip()
+    id_number = request.form.get("id_number", "").strip().upper()
+
+    if not visit_id or not id_number:
+        return """
+        <h1>請輸入身分證字號</h1>
+        <button onclick="location.href='/hospital-checkin'">
+            返回報到
+        </button>
+        """
 
     today = datetime.now().strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
@@ -1622,7 +1592,7 @@ def hospital_checkin_confirm():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. 找到今天這位患者「在本院」的預約
+    # 1. 驗證此筆預約是否屬於本院、今天、且身分證相符
     cursor.execute("""
         SELECT
             visits.visit_id,
@@ -1631,41 +1601,46 @@ def hospital_checkin_confirm():
             visits.appointment_number,
             visits.appointment_time,
             visits.chief_complaint,
-            visits.status
+            visits.status,
+            patients.id_number
         FROM visits
         JOIN patients
             ON visits.patient_id = patients.patient_id
-        WHERE patients.id_number = %s
+        WHERE visits.visit_id = %s
         AND TRIM(visits.facility_id::text) = TRIM(%s::text)
         AND visits.visit_date = %s
         AND visits.status = '已預約'
         ORDER BY visits.visit_id DESC
         LIMIT 1
-    """, (id_number, str(facility_id), today))
+    """, (visit_id, str(facility_id), today))
 
     visit = cursor.fetchone()
 
     if not visit:
         conn.close()
-
         return """
         <h1>找不到可報到的預約</h1>
-
         <p>
-            請確認身分證字號，或確認今天是否有預約。
+            請確認該筆預約是否屬於本院，或確認今天是否有預約。
         </p>
-
         <button onclick="location.href='/hospital-checkin'">
             返回報到
         </button>
         """
 
-    visit_id = visit[0]
-    appointment_number = visit[3]
+    actual_id = (visit[7] or "").strip().upper()
+    if id_number != actual_id:
+        conn.close()
+        return f"""
+        <h1>身分證字號驗證失敗</h1>
+        <p>輸入的身分證字號與患者【{visit[1]}】不相符，請重新確認。</p>
+        <button onclick="location.href='/hospital-checkin'">
+            返回報到
+        </button>
+        """
 
-    checked_in_at = datetime.now().strftime(
-        "%Y-%m-%d %H:%M:%S"
-    )
+    appointment_number = visit[3]
+    checked_in_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # 2. 更新狀態為已報到
     cursor.execute("""
@@ -1751,6 +1726,9 @@ def hospital_checkin_confirm():
         請耐心等待醫生叫號。
     </p>
 
+    <button onclick="location.href='/hospital-checkin'">
+        繼續報到其他患者
+    </button>
     <button onclick="location.href='/hospital'">
         返回醫院工作平台
     </button>
@@ -5704,36 +5682,67 @@ def hospital_login():
     return "<h1>登入失敗</h1><p>帳號或密碼錯誤。</p><button onclick=\"location.href='/hospital-login'\">返回登入</button>"
 
 
-@app.route("/hospital-prescription", methods=["GET", "POST"])
+@app.route("/hospital-prescription", methods=["GET"])
 def hospital_prescription():
 
     if "hospital_user" not in session:
         return redirect("/hospital-login")
 
-    # GET：顯示查詢頁
-    if request.method == "GET":
-        return render_template("hospital-prescription.html")
-
-    id_number = request.form.get(
-        "id_number",
-        ""
-    ).strip().upper()
-
-    if not id_number:
-        return """
-        <h1>請輸入身分證字號</h1>
-
-        <button onclick="location.href='/hospital-prescription'">
-            返回
-        </button>
-        """
-
     today = datetime.now().strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
+    hospital_name = session.get("hospital_name", "醫院端")
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # 撈出該醫院、今天、狀態為「已完成」的患者清單
+    cursor.execute("""
+        SELECT
+            visits.visit_id,
+            COALESCE(patients.name, '患者'),
+            patients.patient_id,
+            COALESCE(visits.appointment_number, 0),
+            COALESCE(visits.appointment_time, ''),
+            visits.completed_at
+        FROM visits
+        JOIN patients
+            ON TRIM(visits.patient_id::text) = TRIM(patients.patient_id::text)
+        WHERE TRIM(visits.facility_id::text) = TRIM(%s::text)
+          AND visits.visit_date = %s
+          AND visits.status = '已完成'
+        ORDER BY visits.completed_at DESC, visits.visit_id DESC
+    """, (str(facility_id), today))
+
+    visits = cursor.fetchall()
+    conn.close()
+
+    return render_template(
+        "hospital-prescription.html",
+        hospital_name=hospital_name,
+        visits=visits
+    )
+
+
+@app.route("/hospital-prescription-verify", methods=["POST"])
+def hospital_prescription_verify():
+
+    if "hospital_user" not in session:
+        return redirect("/hospital-login")
+
+    visit_id = request.form.get("visit_id", "").strip()
+    id_number = request.form.get("id_number", "").strip().upper()
+    facility_id = session.get("hospital_facility_id")
+
+    if not visit_id or not id_number:
+        return """
+        <h1>請輸入身分證字號</h1>
+        <button onclick="location.href='/hospital-prescription'">返回處方列表</button>
+        """
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 驗證此筆看診紀錄是否屬於本院、已完成，並抓取詳細資料
     cursor.execute("""
         SELECT
             visits.visit_id,
@@ -5750,81 +5759,32 @@ def hospital_prescription():
             visits.status
         FROM visits
         JOIN patients
-            ON visits.patient_id = patients.patient_id
-        WHERE patients.id_number = %s
+            ON TRIM(visits.patient_id::text) = TRIM(patients.patient_id::text)
+        WHERE visits.visit_id = %s
           AND TRIM(visits.facility_id::text) = TRIM(%s::text)
           AND visits.status = '已完成'
-        ORDER BY visits.visit_date DESC,
-                 visits.visit_id DESC
-    """, (id_number, str(facility_id)))
-
-    visits = cursor.fetchall()
-    conn.close()
-
-    if not visits:
-        return """
-        <h1>找不到今日已完成的看診</h1>
-
-        <p>
-            請確認身分證字號，或確認患者今天是否已完成看診。
-        </p>
-
-        <button onclick="location.href='/hospital-prescription'">
-            返回
-        </button>
-        """
-
-    return render_template(
-        "hospital-prescription-result.html",
-        visits=visits
-    )
-
-@app.route("/hospital-prescription-detail/<int:visit_id>")
-def hospital_prescription_detail(visit_id):
-
-    print("visit_id =", visit_id)
-
-    if "hospital_user" not in session:
-        return redirect("/hospital-login")
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    SELECT
-        visits.visit_id,
-        patients.name,
-        patients.id_number,
-        patients.patient_id,
-        visits.visit_date,
-        visits.appointment_number,
-        visits.appointment_time,
-        visits.chief_complaint,
-        visits.diagnosis,
-        visits.prescription,
-        visits.completed_at,
-        visits.status
-    FROM visits
-    JOIN patients
-        ON visits.patient_id = patients.patient_id
-    WHERE visits.visit_id = %s
-""", (visit_id,))
+    """, (visit_id, str(facility_id)))
 
     visit = cursor.fetchone()
-
-    print("visit =", visit)
-
     conn.close()
 
     if not visit:
         return """
         <h1>找不到這筆看診資料</h1>
-
-        <button onclick="location.href='/hospital-prescription'">
-            回到歷史處方
-        </button>
+        <button onclick="location.href='/hospital-prescription'">回到處方列表</button>
         """
 
+    actual_id = (visit[2] or "").strip().upper()
+
+    # 身分證核對
+    if id_number != actual_id:
+        return f"""
+        <h1>身分證字號驗證失敗</h1>
+        <p>輸入的身分證字號與患者【{visit[1]}】不相符，無法調閱處方！</p>
+        <button onclick="location.href='/hospital-prescription'">返回處方列表</button>
+        """
+
+    # 驗證成功，呈現處方詳細頁面
     return render_template(
         "hospital-prescription-detail.html",
         visit=visit

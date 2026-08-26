@@ -1,24 +1,69 @@
-<form action="/hospital-checkin" method="POST">
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ hospital_name }} - 患者報到</title>
+</head>
+<body>
 
-    <label>患者身分證字號：</label>
+    <h1>{{ hospital_name }} - 患者報到系統</h1>
+    <hr>
 
-    <input
-        type="text"
-        name="id_number"
-        maxlength="10"
-        required
-    >
+    <h2>今日待報到名單（已預約）</h2>
+
+    {% if patients %}
+    <table border="1" cellpadding="10" style="border-collapse: collapse; text-align: center;">
+        <thead>
+            <tr style="background-color: #f2f2f2;">
+                <th>預約號碼</th>
+                <th>患者姓名</th>
+                <th>Patient ID</th>
+                <th>預約時段</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in patients %}
+            <tr>
+                <td><strong>第 {{ p[3] }} 號</strong></td>
+                <td>{{ p[1] }}</td>
+                <td>{{ p[2] }}</td>
+                <td>{{ p[4] }}</td>
+                <td>
+                    <button type="button" onclick="doCheckin('{{ p[0] }}', '{{ p[1] }}')">報到</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #666;">🎉 目前沒有待報到的預約名單。</p>
+    {% endif %}
+
+    <!-- 隱藏表單：供 JS 填入資料後 POST 送出 -->
+    <form id="checkinForm" action="/hospital-checkin-confirm" method="POST" style="display: none;">
+        <input type="hidden" name="visit_id" id="formVisitId">
+        <input type="hidden" name="id_number" id="formIdNumber">
+    </form>
 
     <br><br>
+    <button onclick="location.href='/hospital'">回到醫院工作平台</button>
 
-    <button type="submit">
-        查詢預約
-    </button>
+    <script>
+    function doCheckin(visitId, patientName) {
+        const idNumber = prompt(`請輸入患者【${patientName}】的身分證字號進行報到核對：`);
+        if (idNumber !== null) {
+            const trimmedId = idNumber.trim();
+            if (trimmedId === "") {
+                alert("身分證字號不能為空！");
+                return;
+            }
+            document.getElementById("formVisitId").value = visitId;
+            document.getElementById("formIdNumber").value = trimmedId;
+            document.getElementById("checkinForm").submit();
+        }
+    }
+    </script>
 
-    <br><br>
-
-    <button onclick="location.href='/hospital'">
-        回到醫院工作平台
-    </button>
-
-</form>
+</body>
+</html>

@@ -1,42 +1,70 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CareBridge - 處方管理</title>
+    <title>{{ hospital_name }} - 處方管理</title>
 </head>
-
 <body>
 
-    <h1>處方管理</h1>
+    <h1>{{ hospital_name }} - 處方與調劑管理</h1>
+    <hr>
 
-    <p>請輸入患者身分證字號：</p>
+    <h2>今日已看診完成名單</h2>
 
-    <form action="/hospital-prescription" method="POST">
+    {% if visits %}
+    <table border="1" cellpadding="10" style="border-collapse: collapse; text-align: center;">
+        <thead>
+            <tr style="background-color: #f2f2f2;">
+                <th>預約號碼</th>
+                <th>患者姓名</th>
+                <th>Patient ID</th>
+                <th>看診完成時間</th>
+                <th>處方操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in visits %}
+            <tr>
+                <td><strong>第 {{ v[3] }} 號</strong></td>
+                <td>{{ v[1] }}</td>
+                <td>{{ v[2] }}</td>
+                <td>{{ v[5] }}</td>
+                <td>
+                    <button type="button" onclick="verifyPrescription('{{ v[0] }}', '{{ v[1] }}')">查看處方</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #666;">🎉 今日目前尚無已看診完成的病患紀錄。</p>
+    {% endif %}
 
-        <input
-            type="text"
-            name="id_number"
-            maxlength="10"
-            placeholder="請輸入身分證字號"
-            required
-        >
-
-        <br><br>
-
-        <button type="submit">
-            查詢處方
-        </button>
-
+    <!-- 隱藏表單：供 JS 填入資料後 POST 送出核對 -->
+    <form id="verifyForm" action="/hospital-prescription-verify" method="POST" style="display: none;">
+        <input type="hidden" name="visit_id" id="verifyVisitId">
+        <input type="hidden" name="id_number" id="verifyIdNumber">
     </form>
 
-    <br>
+    <br><br>
+    <button onclick="location.href='/hospital'">回到醫院工作平台</button>
 
-    <button onclick="location.href='/hospital'">
-        回到醫院工作平台
-    </button>
+    <script>
+    function verifyPrescription(visitId, patientName) {
+        const idNumber = prompt(`請輸入患者【${patientName}】的身分證字號以調閱處方：`);
+        if (idNumber !== null) {
+            const trimmedId = idNumber.trim();
+            if (trimmedId === "") {
+                alert("身分證字號不能為空！");
+                return;
+            }
+            document.getElementById("verifyVisitId").value = visitId;
+            document.getElementById("verifyIdNumber").value = trimmedId;
+            document.getElementById("verifyForm").submit();
+        }
+    }
+    </script>
 
 </body>
-
 </html>
