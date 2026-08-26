@@ -2008,6 +2008,13 @@ def doctor_fhir(patient_id):
     ])
 
     return f"""
+    <style>
+        body {{
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }}
+    </style>
     <h1>FHIR Patient 資料</h1>
 
     <h2>Patient</h2>
@@ -4565,7 +4572,13 @@ def patient_fhir():
     # =========================
 
     return f"""
-
+    <style>
+        body {{
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }}
+    </style>
     <h1>FHIR Patient 資料</h1>
 
     <h2>Patient</h2>
