@@ -5157,6 +5157,13 @@ def send_fhir():
     # ==================================================
 
     return f"""
+    <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
     <h1>FHIR Server 傳送結果</h1>
 
     <p>
@@ -5324,6 +5331,13 @@ def get_fhir():
         family_history = None
 
     return f"""
+    <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
     <h1>從 FHIR Server 查詢到的患者資料</h1>
 
     <h2>Patient</h2>
@@ -5931,6 +5945,13 @@ def hospital_prescription_verify():
     # 身分證核對
     if id_number != actual_id:
         return f"""
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
         <h1>身分證字號驗證失敗</h1>
         <p>輸入的身分證字號與患者【{visit[1]}】不相符，無法調閱處方！</p>
         <button onclick="location.href='/hospital-prescription'">返回處方列表</button>
@@ -5985,6 +6006,13 @@ def check_db():
     conn.close()
 
     return f"""
+    <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
     <h1>Database Check</h1>
     <pre>{result}</pre>
     """
@@ -6038,6 +6066,13 @@ def fix_db():
     conn.close()
 
     return f"""
+    <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }}
+        </style>
     <h1>Database Fixed</h1>
 
     <p>目前最大的 visit_id：{max_visit_id}</p>
