@@ -1361,6 +1361,13 @@ def doctor_complete(visit_id):
         conn.close()
 
         return f"""
+        <style>
+        body {{
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }}
+    </style>
         <h1>看診完成失敗</h1>
 
         <p>找不到這位患者的 FHIR Patient 資料。</p>
@@ -1722,6 +1729,13 @@ def hospital_checkin_confirm():
     conn.close()
 
     return f"""
+    <style>
+        body {{
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }}
+    </style>
     <h1>報到完成！</h1>
 
     <hr>
