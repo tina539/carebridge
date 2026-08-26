@@ -6120,79 +6120,94 @@ def hospital_fhir_detail(patient_id):
         <button onclick="location.href='/hospital-prescription'">返回處方列表</button>
         """
 
-    # 從 HAPI FHIR Server 查詢病患的 Condition
-    condition_url = "https://hapi.fhir.org/baseR4/Condition"
-    condition_json = "無法取得或無紀錄"
-    disease_text = "無"
+    import json
 
-    try:
-        resp = requests.get(
-            condition_url,
-            params={"identifier": f"https://carebridge.example/chronic-condition|{patient_id}"},
-            headers={"Accept": "application/fhir+json"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            res_data = resp.json()
-            import json
-            condition_json = json.dumps(res_data, indent=2, ensure_ascii=False)
-            if res_data.get("total", 0) > 0:
-                disease_text = res_data["entry"][0]["resource"].get("code", {}).get("text", "無")
-    except Exception as e:
-        condition_json = f"FHIR 查詢失敗: {str(e)}"
+    def fetch_fhir(resource_type, identifier_val):
+        url = f"https://hapi.fhir.org/baseR4/{resource_type}"
+        try:
+            resp = requests.get(
+                url,
+                params={"identifier": identifier_val},
+                headers={"Accept": "application/fhir+json"},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("total", 0) > 0 and "entry" in data:
+                    return json.dumps(data["entry"][0]["resource"], indent=2, ensure_ascii=False)
+                return "無資料 (Server 查無此 Resource)"
+        except Exception as e:
+            return f"連線錯誤: {str(e)}"
+        return "無資料"
+
+    # 分別查詢 5 大 FHIR 資源
+    patient_json = fetch_fhir("Patient", f"https://carebridge.example/patient-id|{patient_id}")
+    condition_json = fetch_fhir("Condition", f"https://carebridge.example/chronic-condition|{patient_id}")
+    allergy_json = fetch_fhir("AllergyIntolerance", f"https://carebridge.example/patient-id|{patient_id}-allergy")
+    medication_json = fetch_fhir("MedicationStatement", f"https://carebridge.example/patient-id|{patient_id}-medication")
+    family_json = fetch_fhir("FamilyMemberHistory", f"https://carebridge.example/patient-id|{patient_id}-family")
 
     return f"""
     <!DOCTYPE html>
     <html lang="zh-TW">
     <head>
         <meta charset="UTF-8">
-        <title>FHIR 資料 - {patient[1]}</title>
+        <title>FHIR Patient 資料</title>
         <style>
             body {{
                 background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
                 font-family: sans-serif;
-                padding: 20px;
+                padding: 30px;
                 line-height: 1.6;
             }}
-            .card {{
-                background: #ffffff;
-                padding: 24px;
-                border-radius: 8px;
-                max-width: 800px;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            h1 {{
+                font-size: 26px;
+                margin-bottom: 25px;
+            }}
+            h2 {{
+                font-size: 20px;
+                margin-top: 25px;
+                margin-bottom: 8px;
             }}
             pre {{
-                background: #272822;
-                color: #f8f8f2;
-                padding: 15px;
-                border-radius: 5px;
-                overflow-x: auto;
-                max-height: 400px;
+                background: transparent;
+                color: #222;
+                font-family: Consolas, "Courier New", monospace;
+                font-size: 13px;
+                white-space: pre-wrap;
+                word-break: break-all;
+                margin: 0 0 20px 0;
             }}
             button {{
-                padding: 8px 16px;
+                padding: 8px 18px;
+                font-size: 15px;
                 cursor: pointer;
-                margin-top: 15px;
+                margin-top: 20px;
                 margin-right: 10px;
             }}
         </style>
     </head>
     <body>
-        <div class="card">
-            <h2>FHIR 健康紀錄</h2>
-            <hr>
-            <p><strong>病患姓名：</strong> {patient[1]}</p>
-            <p><strong>Patient ID：</strong> {patient[0]}</p>
-            <p><strong>FHIR Condition（慢性病）：</strong> {disease_text}</p>
-            
-            <hr>
-            <h3>FHIR JSON 原始資源 (Resource)</h3>
-            <pre><code>{condition_json}</code></pre>
-            
-            <hr>
-            <button onclick="history.back()">返回處方資訊</button>
-            <button onclick="location.href='/hospital'">回到醫院首頁</button>
-        </div>
+        <h1>FHIR Patient 資料</h1>
+
+        <h2>Patient</h2>
+        <pre>{patient_json}</pre>
+
+        <h2>Condition (慢性病)</h2>
+        <pre>{condition_json}</pre>
+
+        <h2>AllergyIntolerance (過敏史)</h2>
+        <pre>{allergy_json}</pre>
+
+        <h2>MedicationStatement (長期用藥)</h2>
+        <pre>{medication_json}</pre>
+
+        <h2>FamilyMemberHistory (家族疾病史)</h2>
+        <pre>{family_json}</pre>
+
+        <hr>
+        <button onclick="history.back()">返回處方資訊</button>
+        <button onclick="location.href='/hospital'">回到醫院首頁</button>
     </body>
     </html>
     """
