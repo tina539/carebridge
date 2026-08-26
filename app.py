@@ -653,6 +653,13 @@ def doctor_login():
         return redirect("/doctor-home")
 
     return """
+    <style>
+        body {
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }
+    </style>
     <h1>登入失敗</h1>
     <p>帳號或密碼錯誤。</p>
 
@@ -862,6 +869,13 @@ def doctor_patient_detail(patient_id):
     ])
 
     return f"""
+    <style>
+        body {{
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }}
+    </style>
     <h1>病患詳細資料</h1>
     <hr>
     <h2>{patient[1]}</h2>
@@ -921,6 +935,13 @@ def doctor_prescription_detail(visit_id):
         return "<h1>找不到該處方紀錄</h1><button onclick='window.history.back()'>返回</button>"
 
     return f"""
+    <style>
+        body {{
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }}
+    </style>
     <!DOCTYPE html>
     <html lang="zh-TW">
     <head>
@@ -1515,6 +1536,13 @@ def doctor_complete(visit_id):
     conn.close()
 
     return """
+    <style>
+        body {
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }
+    </style>
     <h1>看診完成！</h1>
 
     <p>處方已成功傳送至醫院端。</p>
@@ -2398,11 +2426,11 @@ def choose_facility():
 
         <title>CareBridge - 看診方式</title>
         <style>
-        body {
+        body {{
             background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
             font-family: sans-serif;
             padding: 20px;
-        }
+        }}
     </style>
     </head>
 
@@ -5679,7 +5707,20 @@ def hospital_login():
         session["hospital_name"] = fac_name
         return redirect("/hospital")
 
-    return "<h1>登入失敗</h1><p>帳號或密碼錯誤。</p><button onclick=\"location.href='/hospital-login'\">返回登入</button>"
+    return """
+    <style>
+        body {
+            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+            font-family: sans-serif;
+            padding: 20px;
+        }
+    </style>
+    <h1>登入失敗</h1>
+    <p>帳號或密碼錯誤。</p>
+    <button onclick="location.href='/hospital-login'">
+        返回登入
+    </button>
+    """
 
 
 @app.route("/hospital-prescription", methods=["GET"])
