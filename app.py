@@ -3048,20 +3048,25 @@ def visit():
             longitude
         )
 
-        # ------------------
-        # 今天候診人數
-        # ------------------
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM visits
-            WHERE TRIM(facility_id::text) = TRIM(%s::text)
-            AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
-            AND status IN ('已預約', '已報到', '看診中')
-        """, (str(facility_id),))
+    # ------------------
+    # 查詢今日該院已佔用名額（已預約、已報到、看診中、已完成）
+    # ------------------
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM visits
+        WHERE TRIM(facility_id::text) = TRIM(%s::text)
+          AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
+          AND status IN ('已預約', '已報到', '看診中', '已完成')
+    """, (str(facility_id),))
+    
+    total_booked_count = cursor.fetchone()[0]
+    print(f"DEBUG 院所 ID: {facility_id}, 今日已掛號總人數: {total_booked_count}")
 
-        waiting_count = cursor.fetchone()[0] or 0
-
-        print(f"DEBUG 院所 ID: {facility_id}, 查出人數: {waiting_count}")
+    # 剩餘名額
+    available_slots = max(
+        (daily_capacity or 20) - total_booked_count,
+        0
+    )
 
     # ------------------
     # 剩餘名額（扣除今日所有 已預約、已報到、看診中、已完成 的患者）
@@ -3724,22 +3729,16 @@ def medical_recommendation():
         cursor.execute("""
             SELECT COUNT(*)
             FROM visits
-            WHERE facility_id = %s
-            AND visit_date = %s
-            AND status IN ('已預約', '已報到', '看診中')
-        """, (
-            facility_id,
-            today
-        ))
+            WHERE TRIM(facility_id::text) = TRIM(%s::text)
+            AND visit_date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
+            AND status IN ('已預約', '已報到', '看診中', '已完成')
+        """, (str(facility_id),))
 
         booked_count = cursor.fetchone()[0]
 
-        # -------------------------
         # 計算剩餘名額
-        # -------------------------
-
         available_slots = max(
-            daily_capacity - booked_count,
+            (daily_capacity or 20) - booked_count,
             0
         )
 
