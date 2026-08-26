@@ -6090,6 +6090,113 @@ def fix_db():
     <pre>{sequence_name}</pre>
     """
 
+@app.route("/hospital-fhir/<patient_id>")
+def hospital_fhir_detail(patient_id):
+    if "hospital_facility_id" not in session and "hospital_user" not in session:
+        return redirect("/hospital-login")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT patient_id, name
+        FROM patients
+        WHERE patient_id::text = %s::text
+        LIMIT 1
+    """, (str(patient_id),))
+    patient = cursor.fetchone()
+    conn.close()
+
+    if not patient:
+        return """
+        <style>
+            body {
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+            }
+        </style>
+        <h1>找不到病患資料</h1>
+        <button onclick="location.href='/hospital-prescription'">返回處方列表</button>
+        """
+
+    # 從 HAPI FHIR Server 查詢病患的 Condition
+    condition_url = "https://hapi.fhir.org/baseR4/Condition"
+    condition_json = "無法取得或無紀錄"
+    disease_text = "無"
+
+    try:
+        resp = requests.get(
+            condition_url,
+            params={"identifier": f"https://carebridge.example/chronic-condition|{patient_id}"},
+            headers={"Accept": "application/fhir+json"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            res_data = resp.json()
+            import json
+            condition_json = json.dumps(res_data, indent=2, ensure_ascii=False)
+            if res_data.get("total", 0) > 0:
+                disease_text = res_data["entry"][0]["resource"].get("code", {}).get("text", "無")
+    except Exception as e:
+        condition_json = f"FHIR 查詢失敗: {str(e)}"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <title>FHIR 資料 - {patient[1]}</title>
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
+                line-height: 1.6;
+            }}
+            .card {{
+                background: #ffffff;
+                padding: 24px;
+                border-radius: 8px;
+                max-width: 800px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            }}
+            pre {{
+                background: #272822;
+                color: #f8f8f2;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+                max-height: 400px;
+            }}
+            button {{
+                padding: 8px 16px;
+                cursor: pointer;
+                margin-top: 15px;
+                margin-right: 10px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>FHIR 健康紀錄</h2>
+            <hr>
+            <p><strong>病患姓名：</strong> {patient[1]}</p>
+            <p><strong>Patient ID：</strong> {patient[0]}</p>
+            <p><strong>FHIR Condition（慢性病）：</strong> {disease_text}</p>
+            
+            <hr>
+            <h3>FHIR JSON 原始資源 (Resource)</h3>
+            <pre><code>{condition_json}</code></pre>
+            
+            <hr>
+            <button onclick="history.back()">返回處方資訊</button>
+            <button onclick="location.href='/hospital'">回到醫院首頁</button>
+        </div>
+    </body>
+    </html>
+    """
+
 init_db()
 
 if __name__ == "__main__":

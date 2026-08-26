@@ -55,12 +55,17 @@
 <h3>目前狀態</h3>
 <p>{{ visit[11] }}</p>
 
+
+
 <hr>
+
+<button onclick="location.href='/hospital-fhir/{{ visit[3] }}'">
+    查看 FHIR 資料
+</button>
 
 <button onclick="history.back()">
     ← 回上一頁
 </button>
-
 
 </body>
 </html>
