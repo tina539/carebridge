@@ -5681,8 +5681,8 @@ def hospital_login():
     # 3 間醫院帳號設定：(帳號, 密碼) -> (facility_id, 醫院名稱)
     hospitals_auth = {
         ("hosphui", "5678"): (1, "阿慧診所"),
-        ("hospkan", "1234"): (2, "CareBridge 第二醫院"),
-        ("hospline", "1234"): (3, "CareBridge 第三醫院")
+        ("hospkan", "1002"): (2, "CareBridge 第二醫院"),
+        ("hospline", "4321"): (3, "CareBridge 第三醫院")
     }
 
     auth_key = (username, password)
