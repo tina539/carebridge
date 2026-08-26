@@ -1551,6 +1551,7 @@ def hospital_checkin():
         """
 
     today = datetime.now().strftime("%Y-%m-%d")
+    facility_id = session.get("hospital_facility_id")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1569,12 +1570,14 @@ def hospital_checkin():
         JOIN patients
             ON visits.patient_id = patients.patient_id
         WHERE patients.id_number = %s
+        AND TRIM(visits.facility_id::text) = TRIM(%s::text)
         AND visits.visit_date = %s
         AND visits.status = '已預約'
         ORDER BY visits.visit_id DESC
         LIMIT 1
     """, (
         id_number,
+        str(facility_id),
         today
     ))
 
@@ -1614,11 +1617,12 @@ def hospital_checkin_confirm():
     ).strip().upper()
 
     today = datetime.now().strftime("%Y-%m-%d")
+    facility_id = session.get("hospital_facility_id")
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 找到今天這位患者的預約
+    # 1. 找到今天這位患者「在本院」的預約
     cursor.execute("""
         SELECT
             visits.visit_id,
@@ -1632,11 +1636,12 @@ def hospital_checkin_confirm():
         JOIN patients
             ON visits.patient_id = patients.patient_id
         WHERE patients.id_number = %s
+        AND TRIM(visits.facility_id::text) = TRIM(%s::text)
         AND visits.visit_date = %s
         AND visits.status = '已預約'
         ORDER BY visits.visit_id DESC
         LIMIT 1
-    """, (id_number, today))
+    """, (id_number, str(facility_id), today))
 
     visit = cursor.fetchone()
 
@@ -1662,7 +1667,7 @@ def hospital_checkin_confirm():
         "%Y-%m-%d %H:%M:%S"
     )
 
-    # 更新狀態
+    # 2. 更新狀態為已報到
     cursor.execute("""
         UPDATE visits
         SET
@@ -1676,27 +1681,30 @@ def hospital_checkin_confirm():
 
     conn.commit()
 
-    # 計算前方已報到人數
+    # 3. 計算本院前方已報到人數
     cursor.execute("""
         SELECT COUNT(*)
         FROM visits
         WHERE visit_date = %s
+        AND TRIM(facility_id::text) = TRIM(%s::text)
         AND status = '已報到'
         AND appointment_number < %s
     """, (
         today,
+        str(facility_id),
         appointment_number
     ))
 
     earlier_checked_in = cursor.fetchone()[0]
 
-    # 正在看診的人
+    # 4. 本院正在看診的人數
     cursor.execute("""
         SELECT COUNT(*)
         FROM visits
         WHERE visit_date = %s
+        AND TRIM(facility_id::text) = TRIM(%s::text)
         AND status = '看診中'
-    """, (today,))
+    """, (today, str(facility_id)))
 
     consulting_count = cursor.fetchone()[0]
 
@@ -5835,9 +5843,13 @@ def hospital():
     if "hospital_user" not in session:
         return redirect("/hospital-login")
 
+    hospital_user = session.get("hospital_user")
+    hospital_name = session.get("hospital_name", hospital_user)
+
     return render_template(
         "hospital.html",
-        hospital_user=session["hospital_user"]
+        hospital_user=hospital_user,
+        hospital_name=hospital_name
     )
 
 @app.route("/check-db")
