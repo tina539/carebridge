@@ -5911,25 +5911,29 @@ def hospital_prescription_verify():
     # 驗證此筆看診紀錄是否屬於本院、已完成，並抓取詳細資料
     cursor.execute("""
         SELECT
-            visits.visit_id,
-            patients.name,
-            patients.id_number,
-            patients.patient_id,
-            visits.visit_date,
-            visits.appointment_number,
-            visits.appointment_time,
-            visits.chief_complaint,
-            visits.diagnosis,
-            visits.prescription,
-            visits.completed_at,
-            visits.status
+            visits.visit_id,            -- record[0]
+            patients.name,              -- record[1]
+            patients.id_number,         -- record[2]
+            patients.patient_id,        -- record[3]
+            visits.visit_date,          -- record[4]
+            visits.appointment_number,  -- record[5]
+            visits.appointment_time,    -- record[6]
+            visits.chief_complaint,     -- record[7]
+            visits.diagnosis,           -- record[8]
+            visits.prescription,        -- record[9]
+            visits.completed_at,        -- record[10] (完成時間)
+            visits.status,              -- record[11] (狀態)
+            patients.disease,           -- record[12] (慢性病)
+            patients.allergy,           -- record[13] (過敏史)
+            patients.medication,        -- record[14] (目前用藥)
+            patients.family_history     -- record[15] (家族病史)
         FROM visits
         JOIN patients
-            ON TRIM(visits.patient_id::text) = TRIM(patients.patient_id::text)
-        WHERE visits.visit_id = %s
+          ON TRIM(visits.patient_id::text) = TRIM(patients.patient_id::text)
+        WHERE visits.visit_id::text = %s::text
           AND TRIM(visits.facility_id::text) = TRIM(%s::text)
           AND visits.status = '已完成'
-    """, (visit_id, str(facility_id)))
+    """, (str(visit_id), str(facility_id)))
 
     visit = cursor.fetchone()
     conn.close()

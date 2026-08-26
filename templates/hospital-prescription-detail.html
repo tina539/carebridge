@@ -32,6 +32,13 @@
 <p><strong>預約時間：</strong>{{ visit[6] }}</p>
 
 <hr>
+<h3>長期健康與病史資料</h3>
+<p><strong>慢性病：</strong> {{ visit[12] or "無" }}</p>
+<p><strong>過敏史：</strong> {{ visit[13] or "無" }}</p>
+<p><strong>目前用藥：</strong> {{ visit[14] or "無" }}</p>
+<p><strong>家族疾病史：</strong> {{ visit[15] or "無" }}</p>
+
+<hr>
 
 <h3>本次就診原因／症狀</h3>
 <p>{{ visit[7] or "未提供" }}</p>
