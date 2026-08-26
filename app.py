@@ -5672,30 +5672,30 @@ def my_queue():
 
 @app.route("/hospital-login", methods=["GET", "POST"])
 def hospital_login():
-
     if request.method == "GET":
         return render_template("hospital-login.html")
 
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "").strip()
 
-    # 先用測試帳號
-    if username == "hospital" and password == "5678":
+    # 3 間醫院帳號設定：(帳號, 密碼) -> (facility_id, 醫院名稱)
+    hospitals_auth = {
+        ("hosphui", "5678"): (1, "阿慧診所"),
+        ("hospkan", "1234"): (2, "CareBridge 第二醫院"),
+        ("hospline", "1234"): (3, "CareBridge 第三醫院")
+    }
 
+    auth_key = (username, password)
+    if auth_key in hospitals_auth:
+        fac_id, fac_name = hospitals_auth[auth_key]
         session["hospital_user"] = username
-
+        session["hospital_facility_id"] = fac_id
+        session["hospital_name"] = fac_name
         return redirect("/hospital")
 
-    return """
-    <h1>登入失敗</h1>
+    return "<h1>登入失敗</h1><p>帳號或密碼錯誤。</p><button onclick=\"location.href='/hospital-login'\">返回登入</button>"
 
-    <p>帳號或密碼錯誤。</p>
 
-    <button onclick="location.href='/hospital-login'">
-        返回登入
-    </button>
-    """
-   
 @app.route("/hospital-prescription", methods=["GET", "POST"])
 def hospital_prescription():
 
@@ -5721,6 +5721,7 @@ def hospital_prescription():
         """
 
     today = datetime.now().strftime("%Y-%m-%d")
+    facility_id = session.get("hospital_facility_id")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -5743,15 +5744,13 @@ def hospital_prescription():
         JOIN patients
             ON visits.patient_id = patients.patient_id
         WHERE patients.id_number = %s
-        AND visits.status = '已完成'
+          AND TRIM(visits.facility_id::text) = TRIM(%s::text)
+          AND visits.status = '已完成'
         ORDER BY visits.visit_date DESC,
-                visits.visit_id DESC
-    """, (id_number,))
+                 visits.visit_id DESC
+    """, (id_number, str(facility_id)))
 
     visits = cursor.fetchall()
-
-    print(visits)
-
     conn.close()
 
     if not visits:
