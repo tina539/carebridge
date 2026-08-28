@@ -6106,7 +6106,6 @@ def hospital_fhir_detail(patient_id):
     """, (str(patient_id),))
     patient = cursor.fetchone()
 
-    # 抓取該病患在資料庫中的所有就診紀錄 visit_id
     cursor.execute("""
         SELECT visit_id
         FROM visits
@@ -6131,7 +6130,7 @@ def hospital_fhir_detail(patient_id):
 
     import json
 
-    def fetch_fhir(resource_type, identifier_val):
+    def fetch_fhir_data(resource_type, identifier_val):
         url = f"https://hapi.fhir.org/baseR4/{resource_type}"
         try:
             resp = requests.get(
@@ -6143,26 +6142,27 @@ def hospital_fhir_detail(patient_id):
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("total", 0) > 0 and "entry" in data:
-                    return json.dumps(data["entry"][0]["resource"], indent=2, ensure_ascii=False)
-                return "無資料 (Server 查無此 Resource)"
+                    res = data["entry"][0]["resource"]
+                    return res.get("id", "無"), json.dumps(res, indent=2, ensure_ascii=False)
+                return "無", "無資料 (Server 查無此 Resource)"
         except Exception as e:
-            return f"連線錯誤: {str(e)}"
-        return "無資料"
+            return "錯誤", f"連線錯誤: {str(e)}"
+        return "無", "無資料"
 
-    # 1. 查詢病患 5 大基本健康資源
-    patient_json = fetch_fhir("Patient", f"https://carebridge.example/patient-id|{patient_id}")
-    condition_json = fetch_fhir("Condition", f"https://carebridge.example/chronic-condition|{patient_id}")
-    allergy_json = fetch_fhir("AllergyIntolerance", f"https://carebridge.example/patient-id|{patient_id}-allergy")
-    medication_json = fetch_fhir("MedicationStatement", f"https://carebridge.example/patient-id|{patient_id}-medication")
-    family_json = fetch_fhir("FamilyMemberHistory", f"https://carebridge.example/patient-id|{patient_id}-family-history")
+    # 1. 查詢 5 大基本資源並取得伺服器分配的主鍵 id
+    patient_server_id, patient_json = fetch_fhir_data("Patient", f"https://carebridge.example/patient-id|{patient_id}")
+    _, condition_json = fetch_fhir_data("Condition", f"https://carebridge.example/chronic-condition|{patient_id}")
+    _, allergy_json = fetch_fhir_data("AllergyIntolerance", f"https://carebridge.example/patient-id|{patient_id}-allergy")
+    _, medication_json = fetch_fhir_data("MedicationStatement", f"https://carebridge.example/patient-id|{patient_id}-medication")
+    _, family_json = fetch_fhir_data("FamilyMemberHistory", f"https://carebridge.example/patient-id|{patient_id}-family-history")
 
     # 2. 查詢該病患所有歷史看診的 FHIR 資源 (Encounter / Condition / MedicationRequest)
     history_fhir_html = ""
     for v in visits:
         v_id = v[0]
-        enc_json = fetch_fhir("Encounter", f"https://carebridge.example/encounter|{patient_id}-{v_id}")
-        cond_json = fetch_fhir("Condition", f"https://carebridge.example/condition|{patient_id}-{v_id}")
-        med_json = fetch_fhir("MedicationRequest", f"https://carebridge.example/medication-request|{patient_id}-{v_id}")
+        _, enc_json = fetch_fhir_data("Encounter", f"https://carebridge.example/encounter|{patient_id}-{v_id}")
+        _, cond_json = fetch_fhir_data("Condition", f"https://carebridge.example/condition|{patient_id}-{v_id}")
+        _, med_json = fetch_fhir_data("MedicationRequest", f"https://carebridge.example/medication-request|{patient_id}-{v_id}")
 
         if "無資料" not in enc_json or "無資料" not in cond_json or "無資料" not in med_json:
             history_fhir_html += f"""
@@ -6175,6 +6175,10 @@ def hospital_fhir_detail(patient_id):
             <h2>MedicationRequest</h2>
             <pre>{med_json}</pre>
             """
+
+    # 建立兩種驗證連結
+    hapi_direct_url = f"https://hapi.fhir.org/baseR4/Patient/{patient_server_id}"
+    hapi_identifier_url = f"https://hapi.fhir.org/baseR4/Patient?identifier=https://carebridge.example/patient-id|{patient_id}"
 
     return f"""
     <!DOCTYPE html>
@@ -6189,10 +6193,22 @@ def hospital_fhir_detail(patient_id):
                 padding: 30px;
                 line-height: 1.5;
             }}
+            .summary-box {{
+                background: #ffffff;
+                padding: 16px 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+                margin-bottom: 25px;
+                max-width: 800px;
+            }}
+            .summary-box a {{
+                color: #0d6efd;
+                word-break: break-all;
+            }}
             h1 {{
                 font-size: 24px;
                 font-weight: bold;
-                margin-bottom: 25px;
+                margin-bottom: 15px;
             }}
             h2 {{
                 font-size: 18px;
@@ -6220,6 +6236,19 @@ def hospital_fhir_detail(patient_id):
     </head>
     <body>
         <h1>FHIR Patient 資料</h1>
+
+        <div class="summary-box">
+            <p><strong>病患姓名：</strong>{patient[1]}</p>
+            <p><strong>系統病歷號 (Identifier)：</strong><code>{patient[0]}</code></p>
+            <p><strong>HAPI FHIR Server ID (主鍵)：</strong><code>{patient_server_id}</code></p>
+            <hr>
+            <p><strong>🌐 HAPI 官方直接讀取連結 (GET by Resource ID)：</strong><br>
+               <a href="{hapi_direct_url}" target="_blank">{hapi_direct_url}</a>
+            </p>
+            <p><strong>🔍 HAPI 條件搜尋連結 (GET by Identifier)：</strong><br>
+               <a href="{hapi_identifier_url}" target="_blank">{hapi_identifier_url}</a>
+            </p>
+        </div>
 
         <h2>Patient</h2>
         <pre>{patient_json}</pre>
