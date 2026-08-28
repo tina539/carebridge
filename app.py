@@ -1806,294 +1806,178 @@ def hospital_checkin_confirm():
 
 @app.route("/doctor-fhir/<patient_id>")
 def doctor_fhir(patient_id):
-
-    if "doctor_id" not in session:
+    if "doctor_id" not in session and "doctor_user" not in session:
         return redirect("/doctor")
 
-    search_url = (
-        "https://hapi.fhir.org/baseR4/Patient"
-        "?identifier=https://carebridge.example/patient-id|"
-        + patient_id
-    )
+    # 1. 取得病患姓名與資料庫就診清單
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
-    response = requests.get(
-        search_url,
-        headers={
-            "Accept": "application/fhir+json"
-        },
-        timeout=60
-    )
+    cursor.execute("""
+        SELECT patient_id, name
+        FROM patients
+        WHERE patient_id::text = %s::text
+        LIMIT 1
+    """, (str(patient_id),))
+    patient = cursor.fetchone()
 
-    if response.status_code != 200:
-        return f"""
+    cursor.execute("""
+        SELECT visit_id
+        FROM visits
+        WHERE patient_id::text = %s::text
+        ORDER BY visit_date DESC, visit_id DESC
+    """, (str(patient_id),))
+    visits = cursor.fetchall()
+    conn.close()
+
+    patient_name = patient[1] if patient else "病患"
+
+    import json
+
+    # 統一封裝 HAPI FHIR GET 查詢
+    def fetch_fhir_data(resource_type, identifier_val):
+        url = f"https://hapi.fhir.org/baseR4/{resource_type}"
+        try:
+            resp = requests.get(
+                url,
+                params={"identifier": identifier_val},
+                headers={"Accept": "application/fhir+json"},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("total", 0) > 0 and "entry" in data:
+                    res = data["entry"][0]["resource"]
+                    return res.get("id", "無"), json.dumps(res, indent=2, ensure_ascii=False)
+                return "無", "無資料 (Server 查無此 Resource)"
+        except Exception as e:
+            return "錯誤", f"連線錯誤: {str(e)}"
+        return "無", "無資料"
+
+    # 2. 查詢 5 大基本健康資源
+    patient_server_id, patient_json = fetch_fhir_data("Patient", f"https://carebridge.example/patient-id|{patient_id}")
+    _, condition_json = fetch_fhir_data("Condition", f"https://carebridge.example/chronic-condition|{patient_id}")
+    _, allergy_json = fetch_fhir_data("AllergyIntolerance", f"https://carebridge.example/patient-id|{patient_id}-allergy")
+    _, medication_json = fetch_fhir_data("MedicationStatement", f"https://carebridge.example/patient-id|{patient_id}-medication")
+    _, family_json = fetch_fhir_data("FamilyMemberHistory", f"https://carebridge.example/patient-id|{patient_id}-family-history")
+
+    # 3. 查詢該病患所有歷史看診的 FHIR 資源 (Encounter / Condition / MedicationRequest)
+    history_fhir_html = ""
+    for v in visits:
+        v_id = v[0]
+        _, enc_json = fetch_fhir_data("Encounter", f"https://carebridge.example/encounter|{patient_id}-{v_id}")
+        _, cond_json = fetch_fhir_data("Condition", f"https://carebridge.example/condition|{patient_id}-{v_id}")
+        _, med_json = fetch_fhir_data("MedicationRequest", f"https://carebridge.example/medication-request|{patient_id}-{v_id}")
+
+        if "無資料" not in enc_json or "無資料" not in cond_json or "無資料" not in med_json:
+            history_fhir_html += f"""
+            <h2>Encounter</h2>
+            <pre>{enc_json}</pre>
+
+            <h2>Condition</h2>
+            <pre>{cond_json}</pre>
+
+            <h2>MedicationRequest</h2>
+            <pre>{med_json}</pre>
+            """
+
+    # 官方直達連結
+    hapi_direct_url = f"https://hapi.fhir.org/baseR4/Patient/{patient_server_id}"
+    hapi_identifier_url = f"https://hapi.fhir.org/baseR4/Patient?identifier=https://carebridge.example/patient-id|{patient_id}"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <title>FHIR Patient 資料 - 醫師端</title>
         <style>
             body {{
                 background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
                 font-family: sans-serif;
-                padding: 20px;
+                padding: 30px;
+                line-height: 1.5;
+            }}
+            .summary-box {{
+                background: #ffffff;
+                padding: 16px 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+                margin-bottom: 25px;
+                max-width: 800px;
+            }}
+            .summary-box a {{
+                color: #0d6efd;
+                word-break: break-all;
+            }}
+            h1 {{
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 15px;
+            }}
+            h2 {{
+                font-size: 18px;
+                font-weight: bold;
+                margin-top: 25px;
+                margin-bottom: 5px;
+            }}
+            pre {{
+                background: transparent;
+                color: #000;
+                font-family: monospace;
+                font-size: 12px;
+                white-space: pre-wrap;
+                word-break: break-all;
+                margin: 0 0 15px 0;
+            }}
+            button {{
+                padding: 8px 18px;
+                font-size: 15px;
+                cursor: pointer;
+                margin-top: 20px;
+                margin-right: 10px;
             }}
         </style>
-        <h1>FHIR 查詢失敗</h1>
+    </head>
+    <body>
+        <h1>FHIR Patient 資料</h1>
 
-        <p>HTTP Status Code：{response.status_code}</p>
+        <div class="summary-box">
+            <p><strong>病患姓名：</strong>{patient_name}</p>
+            <p><strong>系統病歷號 (Identifier)：</strong><code>{patient_id}</code></p>
+            <p><strong>HAPI FHIR Server ID (主鍵)：</strong><code>{patient_server_id}</code></p>
+            <hr>
+            <p><strong>🌐 HAPI 官方直接讀取連結 (GET by Resource ID)：</strong><br>
+               <a href="{hapi_direct_url}" target="_blank">{hapi_direct_url}</a>
+            </p>
+            <p><strong>🔍 HAPI 條件搜尋連結 (GET by Identifier)：</strong><br>
+               <a href="{hapi_identifier_url}" target="_blank">{hapi_identifier_url}</a>
+            </p>
+        </div>
 
-        <pre>{response.text}</pre>
+        <h2>Patient</h2>
+        <pre>{patient_json}</pre>
 
-        <button onclick="location.href='/doctor-home'">
-            回到醫生首頁
-        </button>
-        """
+        <h2>Condition (慢性病)</h2>
+        <pre>{condition_json}</pre>
 
-    result = response.json()
+        <h2>AllergyIntolerance (過敏史)</h2>
+        <pre>{allergy_json}</pre>
 
-    if result.get("total", 0) == 0:
-        return """
-        <h1>找不到 FHIR 資料</h1>
+        <h2>MedicationStatement (長期用藥)</h2>
+        <pre>{medication_json}</pre>
 
-        <p>FHIR Server 中沒有找到這位病患。</p>
+        <h2>FamilyMemberHistory (家族疾病史)</h2>
+        <pre>{family_json}</pre>
 
-        <button onclick="location.href='/doctor-home'">
-            回到醫生首頁
-        </button>
-        """
+        <h1>所有就診紀錄</h1>
+        {history_fhir_html}
 
-    fhir_patient = result["entry"][0]["resource"]
-    fhir_patient_id = fhir_patient["id"]
-
-    # 查詢慢性病 Condition
-
-    chronic_response = requests.get(
-        "https://hapi.fhir.org/baseR4/Condition",
-        params={
-            "identifier":
-            "https://carebridge.example/chronic-condition|" + patient_id
-        },
-        headers={
-            "Accept": "application/fhir+json"
-        },
-        timeout=60
-    )
-
-
-    chronic_result = chronic_response.json()
-
-
-    if chronic_result.get("total",0)>0:
-        chronic_condition = (
-            chronic_result["entry"][0]["resource"]
-        )
-    else:
-        chronic_condition = None
-
-
-    # 查詢 AllergyIntolerance
-    allergy_response = requests.get(
-        f"https://hapi.fhir.org/baseR4/AllergyIntolerance?patient=Patient/{fhir_patient_id}",
-        headers={"Accept": "application/fhir+json"},
-        timeout=60
-    )
-
-    allergy_result = allergy_response.json()
-
-    if allergy_result.get("total", 0) > 0:
-        allergy = allergy_result["entry"][0]["resource"]
-    else:
-        allergy = None
-
-
-    # 查詢 MedicationStatement
-    medication_response = requests.get(
-        f"https://hapi.fhir.org/baseR4/MedicationStatement?patient=Patient/{fhir_patient_id}",
-        headers={"Accept": "application/fhir+json"},
-        timeout=60
-    )
-
-    medication_result = medication_response.json()
-
-    if medication_result.get("total", 0) > 0:
-        medication_statement = medication_result["entry"][0]["resource"]
-    else:
-        medication_statement = None
-
-
-    # 查詢 FamilyMemberHistory
-    family_response = requests.get(
-        f"https://hapi.fhir.org/baseR4/FamilyMemberHistory?patient=Patient/{fhir_patient_id}",
-        headers={"Accept": "application/fhir+json"},
-        timeout=60
-    )
-
-    family_result = family_response.json()
-
-    if family_result.get("total", 0) > 0:
-        family_history = family_result["entry"][0]["resource"]
-    else:
-        family_history = None
-
-    encounter_response = requests.get(
-        "https://hapi.fhir.org/baseR4/Encounter",
-        params={
-            "subject": f"Patient/{fhir_patient_id}",
-            "_count": 100,
-            "_sort": "-date"
-        },
-        headers={
-            "Accept": "application/fhir+json"
-        },
-        timeout=60
-    )
-
-
-    encounter_result = encounter_response.json()
-
-    print("FHIR Encounter total:", encounter_result.get("total"))
-    print("FHIR Encounter count:", len(encounter_result.get("entry", [])))
-
-    encounters = []
-
-    if encounter_result.get("total", 0) > 0:
-        encounters = [
-            entry["resource"]
-            for entry in encounter_result["entry"]
-        ]
-
-    visit_records = []
-
-    for encounter in encounters:
-
-        encounter_identifier = encounter["identifier"][0]["value"]
-
-        # 查詢這位病患所有 Condition
-        condition_response = requests.get(
-            "https://hapi.fhir.org/baseR4/Condition",
-            params={
-                "patient": fhir_patient_id
-            },
-            headers={
-                "Accept": "application/fhir+json"
-            },
-            timeout=60
-        )
-
-
-        condition = None
-
-        conditions = []
-
-        if condition_response.status_code == 200:
-
-            result = condition_response.json()
-
-            if result.get("total", 0) > 0:
-
-                conditions = [
-                    e["resource"]
-                    for e in result["entry"]
-                ]
-
-
-        # 找出本次看診的診斷 Condition
-        for c in conditions:
-
-            if (
-                c.get("identifier")
-                and
-                c["identifier"][0]["system"]
-                == "https://carebridge.example/condition"
-                and
-                c["identifier"][0]["value"]
-                == encounter["identifier"][0]["value"]
-            ):
-                condition = c
-
-        print("Condition search:")
-        print(
-            "https://carebridge.example/condition|"
-            + encounter["identifier"][0]["value"]
-        )
-
-        print(condition_response.json())
-
-        # 查詢同一次看診的 MedicationRequest（處方）
-        medication_response = requests.get(
-            "https://hapi.fhir.org/baseR4/MedicationRequest",
-            params={
-                "identifier":
-                "https://carebridge.example/medication-request|"
-                + encounter["identifier"][0]["value"]
-            },
-            headers={
-                "Accept": "application/fhir+json"
-            },
-            timeout=60
-        )
-
-        medication_request = None
-        if medication_response.status_code == 200:
-            result = medication_response.json()
-            if result.get("total", 0) > 0:
-                medication_request = result["entry"][0]["resource"]
-
-        visit_records.append({
-            "encounter": encounter,
-            "condition": condition,
-            "medication_request": medication_request
-        })
-
-    visit_records_html = "".join([
-        f"""
         <hr>
-
-        <h3>Encounter</h3>
-        <pre>{json.dumps(record["encounter"], ensure_ascii=False, indent=2)}</pre>
-
-        <h3>Condition</h3>
-        <pre>{json.dumps(record["condition"], ensure_ascii=False, indent=2)}</pre>
-
-        <h3>MedicationRequest</h3>
-        <pre>{json.dumps(record["medication_request"], ensure_ascii=False, indent=2)}</pre>
-        """
-        for record in visit_records
-    ])
-
-    return f"""
-    <style>
-        body {{
-            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
-            font-family: sans-serif;
-            padding: 20px;
-        }}
-    </style>
-    <h1>FHIR Patient 資料</h1>
-
-    <h2>Patient</h2>
-    <pre>{json.dumps(fhir_patient, ensure_ascii=False, indent=2)}</pre>
-
-    <h2>Condition（慢性病）</h2>
-    <pre>{json.dumps(chronic_condition, ensure_ascii=False, indent=2)}</pre>
-
-    <h2>AllergyIntolerance（過敏史）</h2>
-    <pre>{json.dumps(allergy, ensure_ascii=False, indent=2)}</pre>
-
-    <h2>MedicationStatement（長期用藥）</h2>
-    <pre>{json.dumps(medication_statement, ensure_ascii=False, indent=2)}</pre>
-
-    <h2>FamilyMemberHistory（家族疾病史）</h2>
-    <pre>{json.dumps(family_history, ensure_ascii=False, indent=2)}</pre>
-
-    <h2>所有就診紀錄</h2>
-
-    {visit_records_html}
-
-    <br>
-
-    <button onclick="history.back()">
-        回到病患詳情
-    </button>
-
-    <button onclick="location.href='/doctor-home'">
-        回到醫生首頁
-    </button>
+        <button onclick="history.back()">回到病患詳情</button>
+        <button onclick="location.href='/doctor-home'">回到醫生首頁</button>
+    </body>
+    </html>
     """
 
 @app.route("/doctor-logout")
@@ -4446,273 +4330,191 @@ def appointment_success(appointment_number):
 
 @app.route("/patient-fhir")
 def patient_fhir():
-
     if "patient_id" not in session:
-        return redirect("/patient")
+        return redirect("/patient-login")
 
-    # =========================
-    # 連接 PostgreSQL
-    # =========================
-
-    conn = get_db()
+    conn = get_db_connection()
     cursor = conn.cursor()
 
     patient_id = session["patient_id"]
 
-    # =========================
     # 取得患者基本資料
-    # =========================
-
     cursor.execute("""
-        SELECT 
-            patient_id,
-            name,
-            birth_date,
-            gender,
-            phone,
-            disease,
-            allergy,
-            medication,
-            family_history
+        SELECT patient_id, name
         FROM patients
-        WHERE patient_id = %s
-    """, (patient_id,))
-
+        WHERE patient_id::text = %s::text
+        LIMIT 1
+    """, (str(patient_id),))
     patient = cursor.fetchone()
 
-    # =========================
-    # 取得歷史看診
-    # =========================
-
+    # 取得該病患所有就診紀錄 visit_id
     cursor.execute("""
-        SELECT
-            visit_date,
-            diagnosis,
-            prescription,
-            chief_complaint
+        SELECT visit_id
         FROM visits
-        WHERE patient_id = %s
-        AND status = '已完成'
-        ORDER BY visit_date DESC
-    """, (patient_id,))
-
+        WHERE patient_id::text = %s::text
+        ORDER BY visit_date DESC, visit_id DESC
+    """, (str(patient_id),))
     visits = cursor.fetchall()
-
     conn.close()
 
-    # =========================
-    # 找不到患者
-    # =========================
-
     if not patient:
-        return "找不到病患資料"
-
-    # =========================
-    # Patient
-    # =========================
-
-    fhir_patient = {
-
-        "resourceType": "Patient",
-
-        "id": patient[0],
-
-        "name": [
-            {
-                "text": patient[1]
+        return """
+        <style>
+            body {
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 20px;
             }
-        ],
+        </style>
+        <h1>找不到病患資料</h1>
+        <button onclick="location.href='/patient-home'">回到患者首頁</button>
+        """
 
-        "gender": patient[3],
+    import json
 
-        "birthDate": patient[2],
-
-        "telecom": [
-            {
-                "system": "phone",
-                "value": patient[4]
-            }
-        ]
-
-    }
-
-    # =========================
-    # 慢性病
-    # =========================
-
-    chronic_condition = None
-
-    if patient[5]:
-
-        chronic_condition = build_chronic_condition_fhir(
-            patient[0],
-            patient[0],
-            patient[5]
-        )
-
-    # =========================
-    # 過敏
-    # =========================
-
-    allergy = None
-
-    if patient[6]:
-
-        allergy = build_allergy_fhir(
-            patient[0],
-            patient[0],
-            patient[6]
-        )
-
-    # =========================
-    # 長期用藥
-    # =========================
-
-    medication = None
-
-    if patient[7]:
-
-        medication = build_medication_fhir(
-            patient[0],
-            patient[0],
-            patient[7]
-        )
-
-    # =========================
-    # 家族史
-    # =========================
-
-    family_history = None
-
-    if patient[8]:
-
-        family_history = build_family_history_fhir(
-            patient[0],
-            patient[0],
-            patient[8]
-        )
-
-    # =========================
-    # 歷史診斷與處方
-    # =========================
-
-    diagnosis_conditions = []
-
-    prescription_requests = []
-
-    for visit in visits:
-
-        visit_date = visit[0]
-        diagnosis = visit[1]
-        prescription = visit[2]
-        complaint = visit[3]
-
-        # -------------------------
-        # 診斷結果
-        # -------------------------
-
-        if diagnosis:
-
-            diagnosis_conditions.append(
-                build_condition_fhir(
-                    patient[0],
-                    patient[0],
-                    visit_date,
-                    diagnosis
-                )
+    # 向 HAPI FHIR Server 發送 GET 查詢
+    def fetch_fhir_data(resource_type, identifier_val):
+        url = f"https://hapi.fhir.org/baseR4/{resource_type}"
+        try:
+            resp = requests.get(
+                url,
+                params={"identifier": identifier_val},
+                headers={"Accept": "application/fhir+json"},
+                timeout=10
             )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("total", 0) > 0 and "entry" in data:
+                    res = data["entry"][0]["resource"]
+                    return res.get("id", "無"), json.dumps(res, indent=2, ensure_ascii=False)
+                return "無", "無資料 (Server 查無此 Resource)"
+        except Exception as e:
+            return "錯誤", f"連線錯誤: {str(e)}"
+        return "無", "無資料"
 
-        # -------------------------
-        # 處方
-        # -------------------------
+    # 1. 查詢 5 大基本健康資源
+    patient_server_id, patient_json = fetch_fhir_data("Patient", f"https://carebridge.example/patient-id|{patient_id}")
+    _, condition_json = fetch_fhir_data("Condition", f"https://carebridge.example/chronic-condition|{patient_id}")
+    _, allergy_json = fetch_fhir_data("AllergyIntolerance", f"https://carebridge.example/patient-id|{patient_id}-allergy")
+    _, medication_json = fetch_fhir_data("MedicationStatement", f"https://carebridge.example/patient-id|{patient_id}-medication")
+    _, family_json = fetch_fhir_data("FamilyMemberHistory", f"https://carebridge.example/patient-id|{patient_id}-family-history")
 
-        if prescription:
+    # 2. 查詢該病患所有歷史看診的 FHIR 資源 (Encounter / Condition / MedicationRequest)
+    history_fhir_html = ""
+    for v in visits:
+        v_id = v[0]
+        _, enc_json = fetch_fhir_data("Encounter", f"https://carebridge.example/encounter|{patient_id}-{v_id}")
+        _, cond_json = fetch_fhir_data("Condition", f"https://carebridge.example/condition|{patient_id}-{v_id}")
+        _, med_json = fetch_fhir_data("MedicationRequest", f"https://carebridge.example/medication-request|{patient_id}-{v_id}")
 
-            prescription_requests.append(
-                build_medication_request_fhir(
-                    patient[0],
-                    patient[0],
-                    visit_date,
-                    prescription
-                )
-            )
+        if "無資料" not in enc_json or "無資料" not in cond_json or "無資料" not in med_json:
+            history_fhir_html += f"""
+            <h2>Encounter</h2>
+            <pre>{enc_json}</pre>
 
-    # =========================
-    # 顯示 FHIR
-    # =========================
+            <h2>Condition</h2>
+            <pre>{cond_json}</pre>
+
+            <h2>MedicationRequest</h2>
+            <pre>{med_json}</pre>
+            """
+
+    # 建立官方驗證連結
+    hapi_direct_url = f"https://hapi.fhir.org/baseR4/Patient/{patient_server_id}"
+    hapi_identifier_url = f"https://hapi.fhir.org/baseR4/Patient?identifier=https://carebridge.example/patient-id|{patient_id}"
 
     return f"""
-    <style>
-        body {{
-            background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
-            font-family: sans-serif;
-            padding: 20px;
-        }}
-    </style>
-    <h1>FHIR Patient 資料</h1>
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <title>FHIR Patient 資料 - 患者端</title>
+        <style>
+            body {{
+                background: linear-gradient(120deg, #E1F3DF 0%, #D7EFE9 50%, #CFECEB 100%);
+                font-family: sans-serif;
+                padding: 30px;
+                line-height: 1.5;
+            }}
+            .summary-box {{
+                background: #ffffff;
+                padding: 16px 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+                margin-bottom: 25px;
+                max-width: 800px;
+            }}
+            .summary-box a {{
+                color: #0d6efd;
+                word-break: break-all;
+            }}
+            h1 {{
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 15px;
+            }}
+            h2 {{
+                font-size: 18px;
+                font-weight: bold;
+                margin-top: 25px;
+                margin-bottom: 5px;
+            }}
+            pre {{
+                background: transparent;
+                color: #000;
+                font-family: monospace;
+                font-size: 12px;
+                white-space: pre-wrap;
+                word-break: break-all;
+                margin: 0 0 15px 0;
+            }}
+            button {{
+                padding: 8px 18px;
+                font-size: 15px;
+                cursor: pointer;
+                margin-top: 20px;
+                margin-right: 10px;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>FHIR Patient 資料</h1>
 
-    <h2>Patient</h2>
+        <div class="summary-box">
+            <p><strong>病患姓名：</strong>{patient[1]}</p>
+            <p><strong>系統病歷號 (Identifier)：</strong><code>{patient[0]}</code></p>
+            <p><strong>HAPI FHIR Server ID (主鍵)：</strong><code>{patient_server_id}</code></p>
+            <hr>
+            <p><strong>🌐 HAPI 官方直接讀取連結 (GET by Resource ID)：</strong><br>
+               <a href="{hapi_direct_url}" target="_blank">{hapi_direct_url}</a>
+            </p>
+            <p><strong>🔍 HAPI 條件搜尋連結 (GET by Identifier)：</strong><br>
+               <a href="{hapi_identifier_url}" target="_blank">{hapi_identifier_url}</a>
+            </p>
+        </div>
 
-    <pre>{json.dumps(
-        fhir_patient,
-        ensure_ascii=False,
-        indent=2
-    )}</pre>
+        <h2>Patient</h2>
+        <pre>{patient_json}</pre>
 
-    <h2>Condition（慢性病）</h2>
+        <h2>Condition (慢性病)</h2>
+        <pre>{condition_json}</pre>
 
-    <pre>{json.dumps(
-        chronic_condition,
-        ensure_ascii=False,
-        indent=2
-    )}</pre>
+        <h2>AllergyIntolerance (過敏史)</h2>
+        <pre>{allergy_json}</pre>
 
-    <h2>Condition（診斷結果）</h2>
+        <h2>MedicationStatement (長期用藥)</h2>
+        <pre>{medication_json}</pre>
 
-    <pre>{json.dumps(
-        diagnosis_conditions,
-        ensure_ascii=False,
-        indent=2
-    )}</pre>
+        <h2>FamilyMemberHistory (家族疾病史)</h2>
+        <pre>{family_json}</pre>
 
-    <h2>MedicationRequest（醫師處方）</h2>
+        <h1>所有就診紀錄</h1>
+        {history_fhir_html}
 
-    <pre>{json.dumps(
-        prescription_requests,
-        ensure_ascii=False,
-        indent=2
-    )}</pre>
-
-    <h2>AllergyIntolerance（過敏史）</h2>
-
-    <pre>{json.dumps(
-        allergy,
-        ensure_ascii=False,
-        indent=2
-    )}</pre>
-
-    <h2>MedicationStatement（長期用藥）</h2>
-
-    <pre>{json.dumps(
-        medication,
-        ensure_ascii=False,
-        indent=2
-    )}</pre>
-
-    <h2>FamilyMemberHistory（家族疾病史）</h2>
-
-    <pre>{json.dumps(
-        family_history,
-        ensure_ascii=False,
-        indent=2
-    )}</pre>
-
-    <br>
-
-    <button onclick="location.href='/patient-home'">
-        回到患者首頁
-    </button>
-
+        <hr>
+        <button onclick="location.href='/patient-home'">回到患者首頁</button>
+    </body>
+    </html>
     """
 
 @app.route("/send-fhir", methods=["POST"])
