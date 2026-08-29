@@ -2191,12 +2191,12 @@ def patient_home():
         waiting_count = cursor.fetchone()[0]
 
         # -------------------------
-        # 計算預估等待時間與預計看診時間
+        # 計算預估等待時間（每人固定 10 分鐘）與預計看診時間
         # -------------------------
-        per_patient_wait = average_wait if (average_wait is not None and average_wait > 0) else 10
+        per_patient_wait = 10
         estimated_wait = waiting_count * per_patient_wait
 
-        # 以當前時間加上等待時間推算看診時刻 (如 19:42)
+        # 以當前時間加上等待時間推算看診時刻
         est_datetime = now_taipei + timedelta(minutes=estimated_wait)
         estimated_time = est_datetime.strftime("%H:%M")
 
