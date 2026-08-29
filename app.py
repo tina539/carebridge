@@ -5661,8 +5661,9 @@ def hospital_prescription():
     if "hospital_user" not in session:
         return redirect("/hospital-login")
 
+    # 使用台北時區取得當前日期
     now_taipei = datetime.now(ZoneInfo("Asia/Taipei"))
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_taipei.strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
     hospital_name = session.get("hospital_name", "醫院端")
 
