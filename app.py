@@ -2103,6 +2103,9 @@ def login():
 </button>
 """
 
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
 @app.route("/patient-home")
 def patient_home():
 
@@ -2112,9 +2115,9 @@ def patient_home():
     patient_id = session["patient_id"]
     patient_name = session.get("patient_name", "患者")
 
-    today = datetime.now(
-        ZoneInfo("Asia/Taipei")
-    ).strftime("%Y-%m-%d")
+    # 取得台北當前時間
+    now_taipei = datetime.now(ZoneInfo("Asia/Taipei"))
+    today = now_taipei.strftime("%Y-%m-%d")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -2133,7 +2136,8 @@ def patient_home():
         m.name,
         m.facility_type,
         m.address,
-        m.average_wait_minutes
+        m.average_wait_minutes,
+        v.facility_id
     FROM visits v
     LEFT JOIN medical_facilities m
         ON v.facility_id::text = m.facility_id::text
@@ -2163,34 +2167,38 @@ def patient_home():
             facility_name,
             facility_type,
             facility_address,
-            average_wait
+            average_wait,
+            facility_id
         ) = visit
 
         # -------------------------
-        # 取得目前候診人數
+        # 取得前方等待人數（只計算號碼小於自己的候診中人數）
         # -------------------------
 
         cursor.execute("""
             SELECT COUNT(*)
             FROM visits
-            WHERE facility_id = (
-                SELECT facility_id
-                FROM visits
-                WHERE patient_id = %s
-                AND visit_date = %s
-                AND status IN ('已預約', '已報到', '看診中')
-                ORDER BY appointment_number DESC
-                LIMIT 1
-            )
+            WHERE facility_id::text = %s::text
             AND visit_date = %s
             AND status IN ('已預約', '已報到', '看診中')
+            AND appointment_number < %s
         """, (
-            patient_id,
+            str(facility_id),
             today,
-            today
+            appointment_number
         ))
 
         waiting_count = cursor.fetchone()[0]
+
+        # -------------------------
+        # 計算預估等待時間與預計看診時間
+        # -------------------------
+        per_patient_wait = average_wait if (average_wait is not None and average_wait > 0) else 10
+        estimated_wait = waiting_count * per_patient_wait
+
+        # 以當前時間加上等待時間推算看診時刻 (如 19:42)
+        est_datetime = now_taipei + timedelta(minutes=estimated_wait)
+        estimated_time = est_datetime.strftime("%H:%M")
 
     else:
 
@@ -2204,6 +2212,8 @@ def patient_home():
         facility_address = None
         average_wait = None
         waiting_count = 0
+        estimated_wait = 0
+        estimated_time = "--:--"
 
     conn.close()
 
@@ -2253,15 +2263,19 @@ def patient_home():
             {chief_complaint or "未提供"}
         </p>
 
-        
         <p>
-            <strong>目前候診人數：</strong>
+            <strong>前方等待人數：</strong>
             {waiting_count} 人
         </p>
 
         <p>
             <strong>預估等待時間：</strong>
-            約 {average_wait or 0} 分鐘
+            約 {estimated_wait} 分鐘
+        </p>
+
+        <p>
+            <strong>預計看診時間：</strong>
+            約 {estimated_time}
         </p>
 
         <br>
@@ -2383,7 +2397,6 @@ def patient_home():
 
     </html>
     """
-
 @app.route("/choose-facility")
 def choose_facility():
 
