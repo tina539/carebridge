@@ -1644,6 +1644,7 @@ def hospital_checkin_confirm():
         </button>
         """
 
+    now_taipei = datetime.now(ZoneInfo("Asia/Taipei"))
     today = datetime.now().strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
 
@@ -5252,6 +5253,7 @@ def register():
 @app.route("/current-call")
 def current_call():
 
+    now_taipei = datetime.now(ZoneInfo("Asia/Taipei"))
     today = datetime.now().strftime("%Y-%m-%d")
 
     conn = get_db_connection()
@@ -5658,6 +5660,7 @@ def hospital_prescription():
     if "hospital_user" not in session:
         return redirect("/hospital-login")
 
+    now_taipei = datetime.now(ZoneInfo("Asia/Taipei"))
     today = datetime.now().strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
     hospital_name = session.get("hospital_name", "醫院端")
