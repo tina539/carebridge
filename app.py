@@ -1590,7 +1590,7 @@ def hospital_checkin():
         return redirect("/hospital-login")
 
     now_taipei = datetime.now(ZoneInfo("Asia/Taipei"))
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_taipei.strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
     hospital_name = session.get("hospital_name", "醫院端")
 
@@ -1645,7 +1645,7 @@ def hospital_checkin_confirm():
         """
 
     now_taipei = datetime.now(ZoneInfo("Asia/Taipei"))
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_taipei.strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
 
     conn = get_db_connection()
@@ -1706,7 +1706,8 @@ def hospital_checkin_confirm():
         """
 
     appointment_number = visit[3]
-    checked_in_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # 使用台北時區取得當前精確時間
+    checked_in_at = now_taipei.strftime("%Y-%m-%d %H:%M:%S")
 
     # 2. 更新狀態為已報到
     cursor.execute("""
