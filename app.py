@@ -2254,14 +2254,14 @@ def patient_home():
         </p>
 
         
-            <p>
-            <strong>預估等待時間：</strong>
-            約 {estimated_wait} 分鐘
+        <p>
+            <strong>目前候診人數：</strong>
+            {waiting_count} 人
         </p>
 
         <p>
-            <strong>預計看診時間：</strong>
-            約 {estimated_time}
+            <strong>預估等待時間：</strong>
+            約 {average_wait or 0} 分鐘
         </p>
 
         <br>
@@ -4335,7 +4335,6 @@ def appointment_success(appointment_number):
             <strong>預計看診時間：</strong>
             約 {estimated_time}
         </p>
-        
 
         <hr>
 
