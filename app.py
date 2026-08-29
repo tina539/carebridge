@@ -1589,6 +1589,7 @@ def hospital_checkin():
     if "hospital_user" not in session:
         return redirect("/hospital-login")
 
+    now_taipei = datetime.now(ZoneInfo("Asia/Taipei"))
     today = datetime.now().strftime("%Y-%m-%d")
     facility_id = session.get("hospital_facility_id")
     hospital_name = session.get("hospital_name", "醫院端")
